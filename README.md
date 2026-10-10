@@ -51,6 +51,15 @@ Private files: `.local/start-preflight.json`, `start-request.json`, `start-respo
 
 Transmission was verified against a loopback mock server on 2026-10-10. No real start was sent during implementation. Existing `plan-start` remains an offline, non-sending command. See `START_API.md` for encoding and evidence.
 
+## Additional API endpoints
+
+`cargo run --locked -- api --help` lists 30 additional operations for notices,
+notification settings, weather, prediction settings, purchase settings, device
+registration/removal, and customer courses. Read operations accept explicit
+`--param KEY=VALUE` arguments; updates accept `--body FILE`. All operations
+support offline `--dry-run`. See [API_ENDPOINTS.md](API_ENDPOINTS.md) for the
+complete list, examples, and the unverified third-party contract limitations.
+
 ## Authentication
 
 Existing locally stored OAuth tokens remain usable after the Rust migration.

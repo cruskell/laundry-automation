@@ -1,6 +1,7 @@
 mod api;
 mod auth;
 mod decoder;
+mod endpoints;
 mod extract;
 mod forensics;
 mod packed;
@@ -23,6 +24,8 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
+    /// Call an additional named API endpoint (see API_ENDPOINTS.md).
+    Api(endpoints::Options),
     /// Refresh OAuth credentials without sending an appliance command.
     RefreshToken,
     /// List registered devices and save the response locally.
@@ -92,6 +95,7 @@ enum Command {
 fn main() -> Result<()> {
     let cli = Cli::parse();
     match cli.command {
+        Command::Api(options) => endpoints::run(&options, cli.appliance_id.as_deref()),
         Command::RefreshToken => auth::refresh(),
         Command::Devices => api::run("devices", cli.appliance_id.as_deref()),
         Command::Info => api::run("info", cli.appliance_id.as_deref()),
