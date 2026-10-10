@@ -1,5 +1,5 @@
 //! Additional API operations from the bundled third-party reference.
-//! These operations have not been verified against production.
+//! Selected read operations are verified against production; see API_ENDPOINTS.md.
 use anyhow::{Context, Result, ensure};
 use clap::{Args, ValueEnum};
 use reqwest::{Method, blocking::Client};
@@ -14,6 +14,8 @@ const BASE: &str = "https://app.wad.apws.panasonic.com/laundry/v5/";
 #[derive(Clone, Copy, Debug, ValueEnum)]
 pub enum Operation {
     Login,
+    /// Fetch registered notification terminal IDs through the app user-info request.
+    NotificationTerminals,
     UpdateUser,
     RegisterDevice,
     RemoveDevice,
@@ -50,7 +52,7 @@ pub struct Options {
     /// Named API operation; run `api --help` for the complete list.
     #[arg(value_enum)]
     operation: Operation,
-    /// Query or path parameter, repeatable (e.g. --param com_id=MODEL).
+    /// Query, path, or named header parameter, repeatable (e.g. --param term_id=ID).
     #[arg(long = "param", value_name = "KEY=VALUE")]
     params: Vec<String>,
     /// JSON object to send, read from a file; never put tokens in shell arguments.
@@ -76,6 +78,7 @@ impl Operation {
         let (method, path, appliance, required, optional, body): (_, _, _, &[&str], &[&str], _) =
             match self {
                 Login => (Method::POST, "users", false, &[], &[], true),
+                NotificationTerminals => (Method::POST, "users", false, &[], &[], false),
                 UpdateUser => (Method::POST, "user", false, &[], &[], true),
                 RegisterDevice => (Method::POST, "user/devices", false, &[], &[], true),
                 RemoveDevice => (Method::DELETE, "user/devices/remove", true, &[], &[], false),
@@ -83,8 +86,8 @@ impl Operation {
                 CustomerCourses => (
                     Method::GET,
                     "customer/course",
-                    false,
-                    &["com_id", "product_number"],
+                    true,
+                    &["wash_dry_course_code", "base_course"],
                     &[],
                     false,
                 ),
@@ -126,8 +129,15 @@ impl Operation {
                     &["language", "limit", "offset", "from_index"],
                     false,
                 ),
-                Notice => (Method::GET, "notices/{id}", false, &["id"], &[], false),
-                NoticeSettings => (Method::GET, "user/notices/setting", true, &[], &[], false),
+                Notice => (Method::GET, "notices", true, &["id"], &[], false),
+                NoticeSettings => (
+                    Method::GET,
+                    "user/notices/setting",
+                    true,
+                    &["term_id"],
+                    &[],
+                    false,
+                ),
                 UpdateNoticeSettings => {
                     (Method::POST, "user/notices/setting", true, &[], &[], true)
                 }
@@ -138,7 +148,7 @@ impl Operation {
                     Method::GET,
                     "user/notifications/settings",
                     true,
-                    &[],
+                    &["term_id"],
                     &[],
                     false,
                 ),
@@ -178,7 +188,14 @@ impl Operation {
                     &["supplies_type", "limit", "offset"],
                     false,
                 ),
-                Advertisements => (Method::GET, "advertisements", false, &[], &[], false),
+                Advertisements => (
+                    Method::GET,
+                    "advertisements",
+                    false,
+                    &["product_number"],
+                    &[],
+                    false,
+                ),
                 Versions => (
                     Method::GET,
                     "versions/{osType}/{appVersion}",
@@ -232,6 +249,8 @@ struct Prepared {
     method: Method,
     url: Url,
     body: Option<Value>,
+    headers: BTreeMap<String, String>,
+    notice_id: Option<String>,
 }
 
 fn prepare(options: &Options, appliance: Option<&str>, base: &str) -> Result<Prepared> {
@@ -283,7 +302,7 @@ fn prepare(options: &Options, appliance: Option<&str>, base: &str) -> Result<Pre
         !(params.contains_key("offset") && params.contains_key("from_index")),
         "Choose offset (reference) or from_index (observed app), not both"
     );
-    let body = options.body.as_deref().map(storage::read).transpose()?;
+    let mut body = options.body.as_deref().map(storage::read).transpose()?;
     ensure!(
         endpoint.body == body.is_some(),
         "This operation {} --body FILE",
@@ -296,6 +315,32 @@ fn prepare(options: &Options, appliance: Option<&str>, base: &str) -> Result<Pre
     if let Some(body) = &body {
         validate_body(options.operation, body)?;
     }
+    if matches!(options.operation, Operation::NotificationTerminals) {
+        body = Some(json!({"type":0}));
+    }
+    let mut headers = BTreeMap::new();
+    for (param, header) in [
+        ("term_id", "X-TermId"),
+        ("product_number", "X-Product-Number"),
+    ] {
+        let is_header = (param == "term_id"
+            && matches!(
+                options.operation,
+                Operation::NoticeSettings | Operation::NotificationSettings
+            ))
+            || (param == "product_number"
+                && matches!(options.operation, Operation::Advertisements));
+        if is_header {
+            let value = params.remove(param).context("Missing header parameter")?;
+            reqwest::header::HeaderValue::from_str(value).context("Invalid header parameter")?;
+            headers.insert(header.to_owned(), value.to_owned());
+        }
+    }
+    let notice_id = if matches!(options.operation, Operation::Notice) {
+        Some(params.remove("id").context("Missing notice ID")?.to_owned())
+    } else {
+        None
+    };
     let mut url = Url::parse(base)?;
     {
         let mut segments = url
@@ -319,6 +364,8 @@ fn prepare(options: &Options, appliance: Option<&str>, base: &str) -> Result<Pre
         method: endpoint.method,
         url,
         body,
+        headers,
+        notice_id,
     })
 }
 
@@ -415,7 +462,7 @@ fn validate_body(operation: Operation, body: &Value) -> Result<()> {
     Ok(())
 }
 
-fn transmit(
+fn transmit_once(
     client: &Client,
     prepared: &Prepared,
     token: Option<&str>,
@@ -438,6 +485,9 @@ fn transmit(
     if let Some(id) = appliance {
         request = request.header("X-ApplianceId", id);
     }
+    for (name, value) in &prepared.headers {
+        request = request.header(name, value);
+    }
     if let Some(body) = &prepared.body {
         request = request.json(body);
     }
@@ -450,6 +500,59 @@ fn transmit(
         serde_json::from_str(&text).unwrap_or_else(|_| json!({"non_json_response":text}))
     };
     Ok((code, data))
+}
+
+// The app's /notices/{id} POST marks a notice read. Fetch details through
+// paginated GET /notices instead so that `notice` remains read-only.
+fn transmit(
+    client: &Client,
+    prepared: &Prepared,
+    token: Option<&str>,
+    appliance: Option<&str>,
+) -> Result<(u16, Value)> {
+    let Some(id) = &prepared.notice_id else {
+        return transmit_once(client, prepared, token, appliance);
+    };
+    let mut offset = 0;
+    for _ in 0..100 {
+        let mut url = prepared.url.clone();
+        url.query_pairs_mut()
+            .append_pair("limit", "100")
+            .append_pair("from_index", &offset.to_string());
+        let page = Prepared {
+            method: Method::GET,
+            url,
+            body: None,
+            headers: prepared.headers.clone(),
+            notice_id: None,
+        };
+        let (code, data) = transmit_once(client, &page, token, appliance)?;
+        // Preserve server errors for the caller's response record.
+        if check_response(code, &data).is_err() {
+            return Ok((code, data));
+        }
+        let Some(notices) = data["notices"].as_array() else {
+            return Ok((
+                code,
+                json!({"error":"Missing notices array", "response":data}),
+            ));
+        };
+        if let Some(notice) = notices.iter().find(|n| n["id"].as_str() == Some(id)) {
+            return Ok((code, json!({"notice":notice,"read_only":true})));
+        }
+        offset += notices.len();
+        let total = data["pagination_info"]["total"].as_u64();
+        if notices.is_empty() || total.is_some_and(|n| offset as u64 >= n) {
+            return Ok((
+                404,
+                json!({"error":"Notice not found in the accessible list", "read_only":true}),
+            ));
+        }
+    }
+    Ok((
+        422,
+        json!({"error":"Notice search exceeded 100 pages", "read_only":true}),
+    ))
 }
 
 fn check_response(code: u16, data: &Value) -> Result<()> {
@@ -484,7 +587,8 @@ pub fn run(options: &Options, appliance: Option<&str>) -> Result<()> {
         &format!("api/{name}-request.json"),
         &json!({
             "method":prepared.method.as_str(), "url":prepared.url.as_str(),
-            "appliance_id":appliance, "body":prepared.body, "dry_run":options.dry_run
+            "appliance_id":appliance, "body":prepared.body, "headers":prepared.headers,
+            "notice_id":prepared.notice_id, "dry_run":options.dry_run
         }),
     )?;
     if options.dry_run {
@@ -514,7 +618,7 @@ pub fn run(options: &Options, appliance: Option<&str>) -> Result<()> {
         &json!({"state":"pending", "automatic_retry":false}),
     )?;
     let result = transmit(&client, &prepared, token.as_deref(), appliance);
-    let (code, data) = match result {
+    let (code, mut data) = match result {
         Ok(result) => result,
         Err(_) => {
             storage::save(
@@ -526,6 +630,14 @@ pub fn run(options: &Options, appliance: Option<&str>) -> Result<()> {
             );
         }
     };
+    if matches!(options.operation, Operation::NotificationTerminals)
+        && check_response(code, &data).is_ok()
+    {
+        data = match data.get("notification_term_ids") {
+            Some(ids) if ids.is_array() => json!({"notification_term_ids":ids}),
+            _ => json!({"error":"User response lacks notification_term_ids array"}),
+        };
+    }
     storage::save(&filename, &json!({"http_status":code,"fetched_at":chrono::Utc::now().to_rfc3339(),"data":data,"automatic_retry":false}))
         .context("Request was sent but saving its response failed; check current state before retrying")?;
     check_response(code, &data)?;
@@ -549,9 +661,243 @@ mod tests {
     }
 
     #[test]
+    fn terminal_list_uses_the_official_authenticated_user_info_request() {
+        let server = tiny_http::Server::http("127.0.0.1:0").unwrap();
+        let prepared = prepare(
+            &options(Operation::NotificationTerminals, &[]),
+            None,
+            &format!("http://{}/laundry/v5/", server.server_addr()),
+        )
+        .unwrap();
+        let worker = std::thread::spawn(move || {
+            let mut request = server
+                .recv_timeout(std::time::Duration::from_secs(3))
+                .unwrap()
+                .unwrap();
+            assert_eq!(request.method(), &tiny_http::Method::Post);
+            assert_eq!(request.url(), "/laundry/v5/users");
+            assert!(
+                request
+                    .headers()
+                    .iter()
+                    .any(|h| h.field.equiv("Authorization") && h.value.as_str() == "Bearer dummy")
+            );
+            let body: Value = serde_json::from_reader(request.as_reader()).unwrap();
+            assert_eq!(body, json!({"type":0}));
+            request
+                .respond(tiny_http::Response::from_string(
+                    json!({"notification_term_ids":["existing-terminal"]}).to_string(),
+                ))
+                .unwrap();
+        });
+        let (code, data) = transmit(
+            &api::control_client().unwrap(),
+            &prepared,
+            Some("dummy"),
+            None,
+        )
+        .unwrap();
+        assert_eq!(code, 200);
+        assert_eq!(data["notification_term_ids"], json!(["existing-terminal"]));
+        worker.join().unwrap();
+    }
+
+    #[test]
+    fn required_header_parameters_are_validated_before_network_access() {
+        for operation in [Operation::NoticeSettings, Operation::NotificationSettings] {
+            assert!(prepare(&options(operation, &[]), Some("device"), BASE).is_err());
+            assert!(
+                prepare(
+                    &options(operation, &["term_id=bad\r\nInjected: x"]),
+                    Some("device"),
+                    BASE
+                )
+                .is_err()
+            );
+            let prepared = prepare(
+                &options(operation, &["term_id=registered-terminal"]),
+                Some("device"),
+                BASE,
+            )
+            .unwrap();
+            assert_eq!(prepared.headers["X-TermId"], "registered-terminal");
+            assert_eq!(prepared.url.query(), None);
+        }
+        assert!(prepare(&options(Operation::Advertisements, &[]), None, BASE).is_err());
+        assert!(
+            prepare(
+                &options(Operation::CustomerCourses, &["wash_dry_course_code=01"]),
+                None,
+                BASE
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn official_read_contracts_send_parameters_in_the_correct_places() {
+        for (operation, params, expected_path, header) in [
+            (
+                Operation::Advertisements,
+                vec!["product_number=NA-LX127ER-W"],
+                "/laundry/v5/advertisements",
+                Some(("X-Product-Number", "NA-LX127ER-W")),
+            ),
+            (
+                Operation::NoticeSettings,
+                vec!["term_id=terminal"],
+                "/laundry/v5/user/notices/setting",
+                Some(("X-TermId", "terminal")),
+            ),
+            (
+                Operation::NotificationSettings,
+                vec!["term_id=terminal"],
+                "/laundry/v5/user/notifications/settings",
+                Some(("X-TermId", "terminal")),
+            ),
+            (
+                Operation::CustomerCourses,
+                vec!["wash_dry_course_code=01", "base_course=21"],
+                "/laundry/v5/customer/course?base_course=21&wash_dry_course_code=01",
+                None,
+            ),
+        ] {
+            let server = tiny_http::Server::http("127.0.0.1:0").unwrap();
+            let prepared = prepare(
+                &options(operation, &params),
+                Some("device"),
+                &format!("http://{}/laundry/v5/", server.server_addr()),
+            )
+            .unwrap();
+            let worker = std::thread::spawn(move || {
+                let request = server
+                    .recv_timeout(std::time::Duration::from_secs(3))
+                    .unwrap()
+                    .unwrap();
+                assert_eq!(request.method(), &tiny_http::Method::Get);
+                assert_eq!(request.url(), expected_path);
+                assert!(
+                    request
+                        .headers()
+                        .iter()
+                        .any(|h| h.field.equiv("X-ApplianceId") && h.value.as_str() == "device")
+                );
+                if let Some((name, value)) = header {
+                    assert!(
+                        request
+                            .headers()
+                            .iter()
+                            .any(|h| h.field.equiv(name) && h.value.as_str() == value)
+                    );
+                }
+                request
+                    .respond(tiny_http::Response::from_string("{}"))
+                    .unwrap();
+            });
+            assert_eq!(
+                transmit(
+                    &api::control_client().unwrap(),
+                    &prepared,
+                    Some("dummy"),
+                    Some("device")
+                )
+                .unwrap()
+                .0,
+                200
+            );
+            worker.join().unwrap();
+        }
+    }
+
+    #[test]
+    fn notice_details_search_pages_without_marking_any_notice_read() {
+        let server = tiny_http::Server::http("127.0.0.1:0").unwrap();
+        let prepared = prepare(
+            &options(Operation::Notice, &["id=target"]),
+            Some("device"),
+            &format!("http://{}/laundry/v5/", server.server_addr()),
+        )
+        .unwrap();
+        let worker = std::thread::spawn(move || {
+            for (offset, id) in [(0, "other"), (1, "target")] {
+                let request = server
+                    .recv_timeout(std::time::Duration::from_secs(3))
+                    .unwrap()
+                    .unwrap();
+                assert_eq!(request.method(), &tiny_http::Method::Get);
+                assert_eq!(
+                    request.url(),
+                    format!("/laundry/v5/notices?limit=100&from_index={offset}")
+                );
+                request.respond(tiny_http::Response::from_string(json!({"notices":[{"id":id,"read_state":false}],"pagination_info":{"total":2}}).to_string())).unwrap();
+            }
+            assert!(
+                server
+                    .recv_timeout(std::time::Duration::from_millis(100))
+                    .unwrap()
+                    .is_none()
+            );
+        });
+        let (code, data) = transmit(
+            &api::control_client().unwrap(),
+            &prepared,
+            Some("dummy"),
+            Some("device"),
+        )
+        .unwrap();
+        assert_eq!(code, 200);
+        assert_eq!(data["notice"], json!({"id":"target","read_state":false}));
+        assert_eq!(data["read_only"], true);
+        worker.join().unwrap();
+    }
+
+    #[test]
+    fn notice_search_returns_missing_and_server_errors_without_writes() {
+        for (status, body, expected) in [
+            (
+                200,
+                json!({"notices":[],"pagination_info":{"total":0}}),
+                404,
+            ),
+            (403, json!({"code":"denied"}), 403),
+            (200, json!({"unexpected":[]}), 200),
+        ] {
+            let server = tiny_http::Server::http("127.0.0.1:0").unwrap();
+            let prepared = prepare(
+                &options(Operation::Notice, &["id=absent"]),
+                Some("device"),
+                &format!("http://{}/laundry/v5/", server.server_addr()),
+            )
+            .unwrap();
+            let worker = std::thread::spawn(move || {
+                let request = server
+                    .recv_timeout(std::time::Duration::from_secs(3))
+                    .unwrap()
+                    .unwrap();
+                assert_eq!(request.method(), &tiny_http::Method::Get);
+                request
+                    .respond(
+                        tiny_http::Response::from_string(body.to_string()).with_status_code(status),
+                    )
+                    .unwrap();
+            });
+            let (code, data) = transmit(
+                &api::control_client().unwrap(),
+                &prepared,
+                Some("dummy"),
+                Some("device"),
+            )
+            .unwrap();
+            assert_eq!(code, expected);
+            assert!(check_response(code, &data).is_err());
+            worker.join().unwrap();
+        }
+    }
+
+    #[test]
     fn parameters_cannot_change_the_origin_or_escape_a_path_segment() {
         let prepared = prepare(
-            &options(Operation::Notice, &["id=a/b?x=1&y=日本語"]),
+            &options(Operation::Courses, &["comId=a/b?x=1&y=日本語"]),
             None,
             BASE,
         )
@@ -559,20 +905,25 @@ mod tests {
         assert_eq!(prepared.url.host_str(), Some("app.wad.apws.panasonic.com"));
         assert_eq!(prepared.url.query(), None);
         assert!(prepared.url.path().contains("a%2Fb%3Fx=1&y="));
-        for value in ["id=.", "id=.."] {
-            assert!(prepare(&options(Operation::Notice, &[value]), None, BASE).is_err());
+        for value in ["comId=.", "comId=.."] {
+            assert!(prepare(&options(Operation::Courses, &[value]), None, BASE).is_err());
         }
         let query = prepare(
             &options(
-                Operation::CustomerCourses,
-                &["com_id=a&evil=1", "product_number=A B"],
+                Operation::CustomView,
+                &[
+                    "com_id=a&evil=1",
+                    "wash_dry_course_code=01",
+                    "view_id=A B",
+                    "command_param_value=4F",
+                ],
             ),
             None,
             BASE,
         )
         .unwrap();
         let pairs: BTreeMap<_, _> = query.url.query_pairs().collect();
-        assert_eq!(pairs.len(), 2);
+        assert_eq!(pairs.len(), 4);
         assert_eq!(pairs["com_id"], "a&evil=1");
     }
 
@@ -644,6 +995,8 @@ mod tests {
                 ))
                 .unwrap(),
                 body: body.clone(),
+                headers: BTreeMap::new(),
+                notice_id: None,
             };
             let worker = std::thread::spawn(move || {
                 let mut request = server
