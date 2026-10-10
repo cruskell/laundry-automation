@@ -122,3 +122,7 @@ See `START_API.md` for the observed immediate wash-and-dry control request. `car
 `cargo run -- explore-models` reads official published-model metadata. `cargo run -- source-audit` compares that metadata and an official source-map file with captured properties. `cargo run -- live-read` sends only type-03 empty-parameter reads for eight model-supported properties. See `SOURCE_AUDIT.md` for evidence and limits.
 
 `cargo run -- probe-unmapped --id ID` attempts a read-only request for one captured unresolved ID and preserves its response. The tested IDs 0201 and 010A were rejected with HTTP 400. See `SOURCE_AUDIT.md`; repeated identical probes do not establish payload semantics.
+
+## Refresh credentials
+
+Run `target/release/laundry-automation refresh-token` to exchange the stored refresh token. The response replaces credentials only after validation; a rotated refresh token is retained, and an omitted refresh token preserves the previous one. Refresh requests disable automatic retries. The daily-start script refreshes credentials before each guarded start and aborts if refresh fails. Credential files remain private and excluded from Git.

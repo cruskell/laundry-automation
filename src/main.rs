@@ -23,6 +23,8 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
+    /// Refresh OAuth credentials without sending an appliance command.
+    RefreshToken,
     /// List registered devices and save the response locally.
     Devices,
     /// Fetch model-specific property labels and enumeration metadata.
@@ -90,6 +92,7 @@ enum Command {
 fn main() -> Result<()> {
     let cli = Cli::parse();
     match cli.command {
+        Command::RefreshToken => auth::refresh(),
         Command::Devices => api::run("devices", cli.appliance_id.as_deref()),
         Command::Info => api::run("info", cli.appliance_id.as_deref()),
         Command::Catalogs => api::run("catalogs", cli.appliance_id.as_deref()),

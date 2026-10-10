@@ -17,6 +17,8 @@ case "${1:-}" in
     --dry-run) set -- start --dry-run ;;
     *) printf 'Usage: daily-start.sh [--dry-run]\n'; exit 2 ;;
 esac
+# Refresh credentials before each daily attempt; failure prevents the start.
+target/release/laundry-automation refresh-token
 if target/release/laundry-automation "$@"; then
     printf '[%s] Request completed successfully\n' "$(date -Iseconds)"
 else
