@@ -14,6 +14,12 @@ const BASE: &str = "https://app.wad.apws.panasonic.com/laundry/v5/";
 #[derive(Clone, Copy, Debug, ValueEnum)]
 pub enum Operation {
     Login,
+    UserInfo,
+    MarkNoticeRead,
+    AmazonAccountLink,
+    AmazonSkillEnable,
+    ControlRead,
+    ControlWrite,
     /// Fetch registered notification terminal IDs through the app user-info request.
     NotificationTerminals,
     UpdateUser,
@@ -22,6 +28,7 @@ pub enum Operation {
     MenuItems,
     CustomerCourses,
     RegisterCourse,
+    EditCourse,
     DeleteCourse,
     CustomView,
     ContentVersions,
@@ -78,10 +85,17 @@ impl Operation {
         let (method, path, appliance, required, optional, body): (_, _, _, &[&str], &[&str], _) =
             match self {
                 Login => (Method::POST, "users", false, &[], &[], true),
+                UserInfo => (Method::POST, "users", false, &[], &[], false),
+                MarkNoticeRead => (Method::POST, "notices/{id}", true, &["id"], &[], false),
+                AmazonAccountLink => (Method::POST, "amazon/account/link", true, &[], &[], true),
+                AmazonSkillEnable => (Method::POST, "amazon/skill/enable", true, &[], &[], true),
+                ControlRead | ControlWrite => {
+                    (Method::POST, "device/control", true, &[], &[], true)
+                }
                 NotificationTerminals => (Method::POST, "users", false, &[], &[], false),
                 UpdateUser => (Method::POST, "user", false, &[], &[], true),
                 RegisterDevice => (Method::POST, "user/devices", false, &[], &[], true),
-                RemoveDevice => (Method::DELETE, "user/devices/remove", true, &[], &[], false),
+                RemoveDevice => (Method::POST, "user/devices/remove", true, &[], &[], false),
                 MenuItems => (Method::GET, "device/menuitem", true, &[], &[], false),
                 CustomerCourses => (
                     Method::GET,
@@ -91,15 +105,9 @@ impl Operation {
                     &[],
                     false,
                 ),
-                RegisterCourse => (Method::POST, "customer/course", false, &[], &[], true),
-                DeleteCourse => (
-                    Method::DELETE,
-                    "customer/course",
-                    false,
-                    &["id"],
-                    &[],
-                    false,
-                ),
+                RegisterCourse | EditCourse | DeleteCourse => {
+                    (Method::POST, "customer/course", true, &[], &[], true)
+                }
                 CustomView => (
                     Method::GET,
                     "custom/view",
@@ -315,8 +323,36 @@ fn prepare(options: &Options, appliance: Option<&str>, base: &str) -> Result<Pre
     if let Some(body) = &body {
         validate_body(options.operation, body)?;
     }
-    if matches!(options.operation, Operation::NotificationTerminals) {
+    if matches!(
+        options.operation,
+        Operation::NotificationTerminals | Operation::UserInfo
+    ) {
         body = Some(json!({"type":0}));
+    }
+    if matches!(options.operation, Operation::RemoveDevice) {
+        body = Some(json!({"appliance_ids":[appliance.unwrap()]}));
+    }
+    if matches!(options.operation, Operation::MarkNoticeRead) {
+        body = Some(json!({"read_state":true}));
+    }
+    if let Some(body) = &body {
+        if let Some(id) = body.get("appliance_id") {
+            if let Some(selected) = appliance {
+                ensure!(
+                    id.as_str() == Some(selected),
+                    "Body appliance_id must match --appliance-id"
+                );
+            }
+        }
+        if matches!(
+            options.operation,
+            Operation::ControlRead | Operation::ControlWrite
+        ) {
+            ensure!(
+                body["requests"][0]["appliance_id"].as_str() == appliance,
+                "Control appliance_id must match --appliance-id"
+            );
+        }
     }
     let mut headers = BTreeMap::new();
     for (param, header) in [
@@ -369,21 +405,113 @@ fn prepare(options: &Options, appliance: Option<&str>, base: &str) -> Result<Pre
     })
 }
 
+fn required_fields(body: &Value, fields: &[(&str, &str)]) -> Result<()> {
+    for (key, kind) in fields {
+        let value = &body[*key];
+        let valid = match *kind {
+            "string" => value.as_str().is_some_and(|s| !s.trim().is_empty()),
+            "boolean" => value.is_boolean(),
+            "integer" => value.is_u64(),
+            "object" => value.is_object(),
+            "array" => value.is_array(),
+            _ => false,
+        };
+        ensure!(valid, "Body requires {key} of type {kind}");
+    }
+    Ok(())
+}
+
+fn validate_commands(cmds: &Value, writing: bool) -> Result<()> {
+    let cmds = cmds.as_array().context("cmds must be an array")?;
+    ensure!(!cmds.is_empty(), "cmds must not be empty");
+    let mut seen = std::collections::BTreeSet::new();
+    for cmd in cmds {
+        let id = cmd["id"].as_str().context("Command requires id")?;
+        ensure!(
+            id.len() == 4 && id.bytes().all(|b| b.is_ascii_hexdigit()),
+            "Command id must be four hex digits"
+        );
+        ensure!(seen.insert(id.to_uppercase()), "Duplicate command id");
+        let params = cmd["params"]
+            .as_array()
+            .context("Command requires params array")?;
+        if writing {
+            ensure!(
+                !params.is_empty()
+                    && params
+                        .iter()
+                        .all(|v| v.as_str().is_some_and(|s| !s.is_empty()
+                            && s.len() % 2 == 0
+                            && s.bytes().all(|b| b.is_ascii_hexdigit()))),
+                "Write params must be nonempty even-length hex strings"
+            );
+            if id.eq_ignore_ascii_case("00B2") {
+                ensure!(
+                    params.len() == 1 && matches!(params[0].as_str(), Some("42" | "43")),
+                    "Use guarded start for starting/resuming operation; control-write supports pause 42 and stop 43"
+                );
+            }
+        } else {
+            ensure!(params.is_empty(), "Read commands require empty params");
+        }
+    }
+    Ok(())
+}
+
 fn validate_body(operation: Operation, body: &Value) -> Result<()> {
     use Operation::*;
     ensure!(
-        body.is_object() && !body.as_object().unwrap().is_empty(),
+        body.as_object().is_some_and(|v| !v.is_empty()),
         "Body must be a nonempty JSON object"
     );
     let required: &[(&str, &str)] = match operation {
-        Login => &[("auth0_token", "string")],
-        RegisterDevice => &[("appliance_id", "string")],
-        RegisterCourse => &[("name", "string"), ("course_code", "string")],
-        UpdateNoticeSettings => &[("settings", "object")],
-        RegisterNotificationToken => &[("token", "string"), ("os_type", "string")],
-        UpdateWeatherSettings => &[("location", "object")],
+        Login => &[("type", "integer")],
+        UpdateUser => &[("setting_type", "integer")],
+        RegisterDevice => &[
+            ("appliance_id", "string"),
+            ("com_id", "string"),
+            ("hashed_guid", "string"),
+            ("nickname", "string"),
+            ("product_code", "string"),
+            ("purchase_info", "object"),
+        ],
+        RegisterCourse | EditCourse | DeleteCourse => &[
+            ("wash_dry_course_code", "string"),
+            ("appliance_id", "string"),
+            ("api_type", "integer"),
+            ("view_id", "string"),
+            ("base_course", "string"),
+            ("courses", "array"),
+        ],
+        UpdateNoticeSettings => &[
+            ("term_id", "string"),
+            ("appliance_id", "string"),
+            ("pana_notice_setting", "boolean"),
+        ],
+        RegisterNotificationToken => &[
+            ("reg_id", "string"),
+            ("type", "integer"),
+            ("device_id", "string"),
+        ],
+        UpdateNotificationSettings => &[
+            ("term_id", "string"),
+            ("appliance_id", "string"),
+            ("all_status", "boolean"),
+            ("items", "array"),
+            ("pana_notice_setting", "boolean"),
+        ],
+        UpdateWeatherSettings => &[
+            ("locale_id", "string"),
+            ("region_id", "string"),
+            ("sub_region_1", "object"),
+            ("sub_region_2", "object"),
+        ],
         UpdatePredictionSettings => &[("use_drytime_prediction", "boolean")],
         UpdatePurchaseSettings => &[("site_id", "string")],
+        AmazonAccountLink | AmazonSkillEnable => {
+            &[("author_code", "string"), ("appliance_id", "string")]
+        }
+        ControlRead | ControlWrite => &[("requests", "array")],
         CommandDetails => &[
             ("product_number", "string"),
             ("com_id", "string"),
@@ -391,72 +519,235 @@ fn validate_body(operation: Operation, body: &Value) -> Result<()> {
         ],
         _ => &[],
     };
-    for (key, kind) in required {
-        let value = &body[*key];
-        let valid = match *kind {
-            "string" => value.as_str().is_some_and(|s| !s.trim().is_empty()),
-            "boolean" => value.is_boolean(),
-            "object" => value.is_object(),
-            "array" => value.is_array(),
-            _ => false,
-        };
-        ensure!(valid, "Body requires {key} of type {kind}");
-    }
-    if matches!(operation, UpdateUser) {
-        ensure!(
-            body.get("tos_agreed_version").is_some() || body.get("stop_service").is_some(),
-            "Supply tos_agreed_version or stop_service"
-        );
-        if let Some(v) = body.get("tos_agreed_version") {
+    required_fields(body, required)?;
+    match operation {
+        Login => ensure!(
+            matches!(body["type"].as_u64(), Some(0 | 1)),
+            "Login type must be 0 (user info) or 1 (login)"
+        ),
+        UpdateUser => match body["setting_type"].as_u64().unwrap() {
+            1 | 3 => required_fields(body, &[("tos_agreed_version", "string")])?,
+            2 => required_fields(body, &[("appliance_id", "string")])?,
+            4 => {
+                required_fields(body, &[("read_message_ids", "array")])?;
+                ensure!(
+                    body["read_message_ids"]
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .all(Value::is_string),
+                    "read_message_ids must contain strings"
+                );
+            }
+            5 => {}
+            6 => {
+                required_fields(body, &[("term_id", "string")])?;
+                ensure!(
+                    body.get("app_sleep_setting").is_some(),
+                    "app_sleep_setting is required"
+                );
+            }
+            _ => anyhow::bail!("setting_type must be 1..6"),
+        },
+        RegisterCourse | EditCourse | DeleteCourse => {
+            let kind = match operation {
+                RegisterCourse => 1,
+                EditCourse => 2,
+                _ => 3,
+            };
             ensure!(
-                v.as_str().is_some_and(|s| !s.is_empty()),
-                "tos_agreed_version must be a nonempty string"
+                body["api_type"] == kind,
+                "This operation requires api_type={kind}"
+            );
+            let courses = body["courses"].as_array().unwrap();
+            ensure!(!courses.is_empty(), "courses must not be empty");
+            for course in courses {
+                ensure!(course.is_object(), "Course must be an object");
+                if kind != 1 {
+                    required_fields(course, &[("id", "string")])?;
+                }
+                if kind != 3 {
+                    required_fields(course, &[("name", "string"), ("cmds", "array")])?;
+                    ensure!(
+                        course["cmds"].as_array().unwrap().iter().all(|c| c["id"]
+                            .as_str()
+                            .is_some_and(
+                                |s| s.len() == 4 && s.bytes().all(|b| b.is_ascii_hexdigit())
+                            )
+                            && c["params"].as_array().is_some_and(
+                                |a| !a.is_empty() && a.iter().all(|p| p["value"].is_string())
+                            )),
+                        "Course cmds require hex id and params with value strings"
+                    );
+                }
+            }
+        }
+        RegisterNotificationToken => ensure!(
+            matches!(body["type"].as_u64(), Some(1 | 2)),
+            "Notification type must be 1 (Android) or 2 (iOS)"
+        ),
+        UpdateNotificationSettings => {
+            for item in body["items"].as_array().unwrap() {
+                required_fields(item, &[("id", "string"), ("status", "boolean")])?;
+            }
+        }
+        UpdateWeatherSettings => {
+            for key in ["sub_region_1", "sub_region_2"] {
+                ensure!(
+                    body[key].as_object().unwrap().len() == 1
+                        && body[key]
+                            .as_object()
+                            .unwrap()
+                            .values()
+                            .all(Value::is_string),
+                    "{key} must map one region code to its name"
+                );
+            }
+        }
+        ControlRead | ControlWrite => {
+            let requests = body["requests"].as_array().unwrap();
+            ensure!(
+                requests.len() == 1,
+                "Control supports exactly one appliance request"
+            );
+            let r = &requests[0];
+            required_fields(
+                r,
+                &[
+                    ("appliance_id", "string"),
+                    ("cmd_type", "string"),
+                    ("protocol", "string"),
+                    ("seq_no", "integer"),
+                    ("cmds", "array"),
+                ],
+            )?;
+            let kind = if matches!(operation, ControlRead) {
+                "03"
+            } else {
+                "02"
+            };
+            ensure!(
+                r["cmd_type"] == kind
+                    && r["protocol"] == "echonetlite"
+                    && r["seq_no"].as_u64().unwrap() > 0,
+                "Invalid control type, protocol, or sequence"
+            );
+            validate_commands(&r["cmds"], matches!(operation, ControlWrite))?;
+        }
+        CommandDetails => {
+            ensure!(
+                body["cmds"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .all(|cmd| cmd["id"].as_str().is_some_and(
+                        |id| id.len() == 4 && id.bytes().all(|b| b.is_ascii_hexdigit())
+                    ) && cmd["params"].is_array()),
+                "cmds require hex id and params-array encoding"
             );
         }
-        if let Some(v) = body.get("stop_service") {
-            ensure!(v.is_boolean(), "stop_service must be a boolean");
-        }
+        _ => {}
     }
-    if matches!(operation, RegisterNotificationToken) {
+    Ok(())
+}
+
+fn check_supported_commands(info: &Value, body: &Value, writing: bool) -> Result<()> {
+    let models = info["devices"]
+        .as_array()
+        .context("Missing model metadata")?;
+    ensure!(models.len() == 1, "Expected one model metadata record");
+    let block = models[0]["supported_cmds"]
+        .as_array()
+        .context("Missing supported commands")?
+        .iter()
+        .find(|b| b["protocol"] == "echonetlite")
+        .context("Missing ECHONET metadata")?;
+    let supported = block[if writing { "set" } else { "get" }]
+        .as_array()
+        .context("Missing supported property list")?;
+    for cmd in body["requests"][0]["cmds"].as_array().unwrap() {
+        let id = cmd["id"].as_str().unwrap();
         ensure!(
-            ["ios", "android"].contains(&body["os_type"].as_str().unwrap_or("")),
-            "os_type must be ios or android"
+            supported
+                .iter()
+                .any(|v| v.as_str().is_some_and(|s| s.eq_ignore_ascii_case(id))),
+            "Model does not support this command ID for the requested operation"
         );
     }
-    if matches!(operation, UpdateNotificationSettings) {
-        ensure!(
-            body.get("enabled").is_some() || body.get("types").is_some(),
-            "Supply enabled or types"
+    Ok(())
+}
+
+fn control_capabilities(
+    client: &Client,
+    token: &str,
+    appliance: &str,
+    body: &Value,
+    writing: bool,
+) -> Result<()> {
+    let (code, devices) = api::request(client, "user/devices", token, Some(appliance), false)?;
+    check_response(code, &devices)?;
+    let matches: Vec<_> = devices["devices"]
+        .as_array()
+        .context("Missing devices array")?
+        .iter()
+        .filter(|d| d["appliance_id"].as_str() == Some(appliance))
+        .collect();
+    ensure!(
+        matches.len() == 1,
+        "Select exactly one registered appliance"
+    );
+    let device = matches[0];
+    let mut url = Url::parse(&format!("{BASE}device/info"))?;
+    url.query_pairs_mut()
+        .append_pair(
+            "product_number",
+            device["product_code"]
+                .as_str()
+                .context("Missing product code")?,
+        )
+        .append_pair(
+            "com_id",
+            device["com_id"]
+                .as_str()
+                .context("Missing communication model")?,
         );
-        if let Some(v) = body.get("enabled") {
-            ensure!(v.is_boolean(), "enabled must be a boolean");
-        }
-        if let Some(v) = body.get("types") {
-            ensure!(
-                v.as_array().is_some_and(|a| a.iter().all(Value::is_string)),
-                "types must be an array of strings"
-            );
-        }
-    }
-    if matches!(operation, UpdateWeatherSettings) {
-        for (key, max) in [("latitude", 90.0), ("longitude", 180.0)] {
-            ensure!(
-                body["location"][key]
-                    .as_f64()
-                    .is_some_and(|n| n.is_finite() && n.abs() <= max),
-                "Invalid location.{key}"
-            );
-        }
-    }
-    if matches!(operation, CommandDetails) {
+    let (code, info) = api::request(
+        client,
+        &format!("device/info?{}", url.query().unwrap()),
+        token,
+        Some(appliance),
+        false,
+    )?;
+    check_response(code, &info)?;
+    ensure!(
+        info["devices"][0]["com_id"] == device["com_id"],
+        "Unexpected capability communication model"
+    );
+    storage::save(
+        "api/control-capabilities.json",
+        &json!({"http_status":code,"data":info}),
+    )?;
+    check_supported_commands(&info, body, writing)
+}
+
+fn check_control_response(request: &Value, data: &Value) -> Result<()> {
+    let results = data["results"]
+        .as_array()
+        .context("Missing control results")?;
+    ensure!(results.len() == 1, "Expected one control result");
+    let r = &results[0];
+    let expected = &request["requests"][0];
+    for key in ["appliance_id", "cmd_type", "seq_no"] {
         ensure!(
-            body["cmds"].as_array().unwrap().iter().all(|cmd| {
-                cmd["id"]
-                    .as_str()
-                    .is_some_and(|id| id.len() == 4 && id.bytes().all(|b| b.is_ascii_hexdigit()))
-                    && cmd["params"].is_array()
-            }),
-            "cmds must use the observed id/params-array encoding"
+            r[key] == expected[key],
+            "Control acknowledgement mismatch: {key}"
+        );
+    }
+    ensure!(r["cmd_result"] == true, "Control command rejected");
+    for key in ["status_code", "pcpf_status_code"] {
+        ensure!(
+            r[key] == "200" || r[key] == 200,
+            "Control reported unsuccessful {key}"
         );
     }
     Ok(())
@@ -598,26 +889,31 @@ pub fn run(options: &Options, appliance: Option<&str>) -> Result<()> {
         );
         return Ok(());
     }
-    let token = if matches!(options.operation, Operation::Login) {
-        None
-    } else {
-        let tokens = storage::read(&storage::root().join("auth/tokens.json"))
-            .context("Login required: complete the browser OAuth flow first")?;
-        Some(
-            tokens["access_token"]
-                .as_str()
-                .filter(|s| !s.is_empty())
-                .context("Missing access token")?
-                .to_owned(),
-        )
-    };
+    let tokens = storage::read(&storage::root().join("auth/tokens.json"))
+        .context("Login required: complete the browser OAuth flow first")?;
+    let token = tokens["access_token"]
+        .as_str()
+        .filter(|s| !s.is_empty())
+        .context("Missing access token")?;
     let client = api::control_client()?;
+    if matches!(
+        options.operation,
+        Operation::ControlRead | Operation::ControlWrite
+    ) {
+        control_capabilities(
+            &client,
+            token,
+            appliance.unwrap(),
+            prepared.body.as_ref().unwrap(),
+            matches!(options.operation, Operation::ControlWrite),
+        )?;
+    }
     let filename = format!("api/{name}-response.json");
     storage::save(
         &filename,
         &json!({"state":"pending", "automatic_retry":false}),
     )?;
-    let result = transmit(&client, &prepared, token.as_deref(), appliance);
+    let result = transmit(&client, &prepared, Some(token), appliance);
     let (code, mut data) = match result {
         Ok(result) => result,
         Err(_) => {
@@ -641,6 +937,12 @@ pub fn run(options: &Options, appliance: Option<&str>) -> Result<()> {
     storage::save(&filename, &json!({"http_status":code,"fetched_at":chrono::Utc::now().to_rfc3339(),"data":data,"automatic_retry":false}))
         .context("Request was sent but saving its response failed; check current state before retrying")?;
     check_response(code, &data)?;
+    if matches!(
+        options.operation,
+        Operation::ControlRead | Operation::ControlWrite
+    ) {
+        check_control_response(prepared.body.as_ref().unwrap(), &data)?;
+    }
     println!(
         "{name}: HTTP {code}; response saved to .local/{filename}. This is an HTTP/API result, not confirmation of a physical operation."
     );
@@ -658,6 +960,253 @@ mod tests {
             body: None,
             dry_run: true,
         }
+    }
+
+    fn prepare_body(operation: Operation, body: &Value) -> Result<Prepared> {
+        use std::sync::atomic::{AtomicU64, Ordering};
+        static SERIAL: AtomicU64 = AtomicU64::new(0);
+        let path = std::env::temp_dir().join(format!(
+            "laundry-api-test-{}-{}.json",
+            std::process::id(),
+            SERIAL.fetch_add(1, Ordering::Relaxed)
+        ));
+        std::fs::write(&path, body.to_string())?;
+        let opts = Options {
+            operation,
+            params: vec![],
+            body: Some(path.clone()),
+            dry_run: true,
+        };
+        let result = prepare(&opts, Some("device"), BASE);
+        std::fs::remove_file(path)?;
+        result
+    }
+
+    fn course_body(kind: u64) -> Value {
+        json!({"wash_dry_course_code":"01","appliance_id":"device","api_type":kind,"view_id":if kind==1 {"11300"} else {"11310"},"base_course":"2102","courses":[{"id":"000001","name":"example","cmds":[{"id":"00D0","params":[{"value":"21"}]}]}]})
+    }
+
+    #[test]
+    fn official_mutation_contracts_are_posted_once_with_exact_bodies() {
+        let cases = vec![
+            (
+                Operation::Login,
+                "users",
+                Some(json!({"type":0})),
+                json!({"type":0}),
+                vec![],
+            ),
+            (
+                Operation::RemoveDevice,
+                "user/devices/remove",
+                None,
+                json!({"appliance_ids":["device"]}),
+                vec![],
+            ),
+            (
+                Operation::MarkNoticeRead,
+                "notices/notice-id",
+                None,
+                json!({"read_state":true}),
+                vec!["id=notice-id"],
+            ),
+            (
+                Operation::AmazonAccountLink,
+                "amazon/account/link",
+                Some(json!({"author_code":"dummy-code","appliance_id":"device"})),
+                json!({"author_code":"dummy-code","appliance_id":"device"}),
+                vec![],
+            ),
+            (
+                Operation::AmazonSkillEnable,
+                "amazon/skill/enable",
+                Some(json!({"author_code":"dummy-code","appliance_id":"device"})),
+                json!({"author_code":"dummy-code","appliance_id":"device"}),
+                vec![],
+            ),
+            (
+                Operation::RegisterCourse,
+                "customer/course",
+                Some(course_body(1)),
+                course_body(1),
+                vec![],
+            ),
+            (
+                Operation::EditCourse,
+                "customer/course",
+                Some(course_body(2)),
+                course_body(2),
+                vec![],
+            ),
+            (
+                Operation::DeleteCourse,
+                "customer/course",
+                Some(course_body(3)),
+                course_body(3),
+                vec![],
+            ),
+            (
+                Operation::RegisterNotificationToken,
+                "user/notifications",
+                Some(json!({"reg_id":"dummy-push","type":1,"device_id":"phone"})),
+                json!({"reg_id":"dummy-push","type":1,"device_id":"phone"}),
+                vec![],
+            ),
+            (
+                Operation::UpdateNoticeSettings,
+                "user/notices/setting",
+                Some(
+                    json!({"term_id":"terminal","appliance_id":"device","pana_notice_setting":false}),
+                ),
+                json!({"term_id":"terminal","appliance_id":"device","pana_notice_setting":false}),
+                vec![],
+            ),
+            (
+                Operation::UpdateNotificationSettings,
+                "user/notifications/settings",
+                Some(
+                    json!({"term_id":"terminal","appliance_id":"device","all_status":false,"items":[{"id":"item","status":false}],"pana_notice_setting":true}),
+                ),
+                json!({"term_id":"terminal","appliance_id":"device","all_status":false,"items":[{"id":"item","status":false}],"pana_notice_setting":true}),
+                vec![],
+            ),
+            (
+                Operation::UpdateWeatherSettings,
+                "weatherinfo/settings",
+                Some(
+                    json!({"locale_id":"ja_JP","region_id":"region","sub_region_1":{"pref":"Prefecture"},"sub_region_2":{"city":"City"}}),
+                ),
+                json!({"locale_id":"ja_JP","region_id":"region","sub_region_1":{"pref":"Prefecture"},"sub_region_2":{"city":"City"}}),
+                vec![],
+            ),
+        ];
+        for (operation, path, input, expected, params) in cases {
+            let mut prepared = if let Some(body) = input {
+                prepare_body(operation, &body).unwrap()
+            } else {
+                prepare(&options(operation, &params), Some("device"), BASE).unwrap()
+            };
+            let server = tiny_http::Server::http("127.0.0.1:0").unwrap();
+            prepared.url = Url::parse(&format!(
+                "http://{}/laundry/v5/{path}",
+                server.server_addr()
+            ))
+            .unwrap();
+            let worker = std::thread::spawn(move || {
+                let mut request = server
+                    .recv_timeout(std::time::Duration::from_secs(3))
+                    .unwrap()
+                    .unwrap();
+                assert_eq!(request.method(), &tiny_http::Method::Post);
+                assert_eq!(request.url(), format!("/laundry/v5/{path}"));
+                assert!(
+                    request
+                        .headers()
+                        .iter()
+                        .any(|h| h.field.equiv("Authorization")
+                            && h.value.as_str() == "Bearer dummy")
+                );
+                assert!(
+                    request
+                        .headers()
+                        .iter()
+                        .any(|h| h.field.equiv("X-ApplianceId") && h.value.as_str() == "device")
+                );
+                let body: Value = serde_json::from_reader(request.as_reader()).unwrap();
+                assert_eq!(body, expected);
+                request
+                    .respond(tiny_http::Response::from_string("{}"))
+                    .unwrap();
+                assert!(
+                    server
+                        .recv_timeout(std::time::Duration::from_millis(30))
+                        .unwrap()
+                        .is_none()
+                );
+            });
+            let (code, data) = transmit(
+                &api::control_client().unwrap(),
+                &prepared,
+                Some("dummy"),
+                Some("device"),
+            )
+            .unwrap();
+            check_response(code, &data).unwrap();
+            worker.join().unwrap();
+        }
+    }
+
+    #[test]
+    fn all_user_setting_modes_accept_official_fields_and_reject_missing_data() {
+        for body in [
+            json!({"setting_type":1,"tos_agreed_version":"9"}),
+            json!({"setting_type":2,"appliance_id":"device"}),
+            json!({"setting_type":3,"tos_agreed_version":"9"}),
+            json!({"setting_type":4,"read_message_ids":["message"]}),
+            json!({"setting_type":5}),
+            json!({"setting_type":6,"term_id":"terminal","app_sleep_setting":false}),
+        ] {
+            assert!(prepare_body(Operation::UpdateUser, &body).is_ok());
+        }
+        for mode in [1, 2, 3, 4, 6, 7] {
+            assert!(validate_body(Operation::UpdateUser, &json!({"setting_type":mode})).is_err());
+        }
+        assert!(
+            prepare_body(
+                Operation::UpdateNoticeSettings,
+                &json!({"term_id":"terminal","appliance_id":"other","pana_notice_setting":true})
+            )
+            .is_err()
+        );
+        assert!(
+            validate_body(
+                Operation::RegisterNotificationToken,
+                &json!({"token":"old","os_type":"android"})
+            )
+            .is_err()
+        );
+        assert!(validate_body(Operation::RegisterCourse, &course_body(3)).is_err());
+        assert!(validate_body(Operation::DeleteCourse, &json!({"id":"old-reference"})).is_err());
+    }
+
+    fn control_body(writing: bool, value: &str) -> Value {
+        json!({"requests":[{"appliance_id":"device","cmd_type":if writing {"02"} else {"03"},"cmds":[{"id":"00B2","params":if writing {json!([value])} else {json!([])}}],"protocol":"echonetlite","seq_no":1}]})
+    }
+
+    #[test]
+    fn raw_control_validates_model_support_start_guard_and_acknowledgements() {
+        let info = json!({"devices":[{"supported_cmds":[{"protocol":"echonetlite","get":["00B2"],"set":["00B2"]}]}]});
+        for (op, body) in [
+            (Operation::ControlRead, control_body(false, "")),
+            (Operation::ControlWrite, control_body(true, "42")),
+            (Operation::ControlWrite, control_body(true, "43")),
+        ] {
+            let prepared = prepare_body(op, &body).unwrap();
+            check_supported_commands(&info, &body, matches!(op, Operation::ControlWrite)).unwrap();
+            assert_eq!(prepared.method, Method::POST);
+            let good = json!({"results":[{"appliance_id":"device","cmd_type":body["requests"][0]["cmd_type"],"seq_no":1,"cmd_result":true,"status_code":"200","pcpf_status_code":200}]});
+            check_control_response(&body, &good).unwrap();
+            for (key, value) in [
+                ("cmd_result", json!(false)),
+                ("appliance_id", json!("other")),
+                ("seq_no", json!(2)),
+                ("pcpf_status_code", json!(500)),
+                ("cmd_type", json!("FF")),
+            ] {
+                let mut bad = good.clone();
+                bad["results"][0][key] = value;
+                assert!(check_control_response(&body, &bad).is_err());
+            }
+        }
+        assert!(validate_body(Operation::ControlWrite, &control_body(true, "41")).is_err());
+        assert!(validate_body(Operation::ControlRead, &control_body(true, "42")).is_err());
+        assert!(validate_body(Operation::ControlWrite, &control_body(true, "4")).is_err());
+        let mut unknown = control_body(false, "");
+        unknown["requests"][0]["cmds"][0]["id"] = json!("FFFF");
+        assert!(check_supported_commands(&info, &unknown, false).is_err());
+        let mut mismatch = control_body(false, "");
+        mismatch["requests"][0]["appliance_id"] = json!("other");
+        assert!(prepare_body(Operation::ControlRead, &mismatch).is_err());
     }
 
     #[test]

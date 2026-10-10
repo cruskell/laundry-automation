@@ -53,14 +53,17 @@ Transmission was verified against a loopback mock server on 2026-10-10. No real 
 
 ## Additional API endpoints
 
-`cargo run --locked -- api --help` lists 31 additional operations for notices,
+`cargo run --locked -- api --help` lists 38 additional operations for notices,
 notification settings, weather, prediction settings, purchase settings, device
 registration/removal, and customer courses. Read operations accept explicit
 `--param KEY=VALUE` arguments; updates accept `--body FILE`. All operations
 support offline `--dry-run`. See [API_ENDPOINTS.md](API_ENDPOINTS.md) for the
 complete list, examples, production-verified read corrections, and remaining
 contract limitations. `api notification-terminals` retrieves registered terminal
-IDs for the two notification settings reads.
+IDs for the two notification settings reads. Device removal, notice read-state
+updates, course add/edit/delete, Amazon/Alexa linking, and raw model-supported
+control reads/writes follow the official app request formats. All 21 reference
+operations have been checked against production; writes use mock-server tests.
 
 ## Authentication
 
