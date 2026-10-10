@@ -1,0 +1,790 @@
+{
+  "model": "NA-LX127ER-W",
+  "com_id": "NA-LX127E",
+  "generated_at": "2026-10-09T12:34:48.835963+00:00",
+  "sources": {
+    "metadata": "https://app.wad.apws.panasonic.com/laundry/v5/device/info",
+    "web_bundle": "https://cot.wad.apws.panasonic.com/FY26_2nd/static/js/main.d8aa4ffb.js",
+    "web_bundle_sha256": "45c8a426f5b4ef744c03af72f3e7326a8d05efd0afb194f71ea0bae5e186dd7f"
+  },
+  "properties": {
+    "0080": {
+      "key": "OperatingState",
+      "name": "動作状態",
+      "enum": {
+        "30": "ON",
+        "31": "OFF"
+      },
+      "name_source": "official_device_info"
+    },
+    "0081": {
+      "key": "InstallationLocation",
+      "name": null,
+      "enum": {},
+      "name_source": "official_web_registry"
+    },
+    "0082": {
+      "key": "StandardVersion",
+      "name": null,
+      "enum": {},
+      "name_source": "official_web_registry"
+    },
+    "0086": {
+      "key": "AbnormalCode",
+      "name": "メーカ異常コード",
+      "enum": {},
+      "name_source": "official_device_info"
+    },
+    "0088": {
+      "key": "EpidemicState",
+      "name": "異常発生状態",
+      "enum": {
+        "41": "異常発生有",
+        "42": "異常発生無"
+      },
+      "name_source": "official_device_info"
+    },
+    "008A": {
+      "key": "MakerCode",
+      "name": null,
+      "enum": {},
+      "name_source": "official_web_registry"
+    },
+    "0090": {
+      "key": "OnTimerReservationSetting",
+      "name": "ONタイマ予約設定",
+      "enum": {
+        "41": "予約入",
+        "42": "予約切"
+      },
+      "name_source": "official_device_info"
+    },
+    "0092": {
+      "key": "OnRelativeTimerReservationSetting",
+      "name": "ONタイマ相対時間設定",
+      "enum": {},
+      "name_source": "official_device_info"
+    },
+    "009D": {
+      "key": "StateChangeAnnouncementMap",
+      "name": null,
+      "enum": {},
+      "name_source": "official_web_registry"
+    },
+    "009E": {
+      "key": "SetMap",
+      "name": null,
+      "enum": {},
+      "name_source": "official_web_registry"
+    },
+    "009F": {
+      "key": "GetMap",
+      "name": null,
+      "enum": {},
+      "name_source": "official_web_registry"
+    },
+    "00B0": {
+      "key": "OpeningAndClosingState",
+      "name": "扉・蓋開閉状態",
+      "enum": {
+        "41": "開",
+        "42": "閉"
+      },
+      "name_source": "official_device_info"
+    },
+    "00B2": {
+      "key": "WashingAndDryingSetting",
+      "name": "洗濯・乾燥設定",
+      "enum": {
+        "41": "開始",
+        "42": "一時停止"
+      },
+      "name_source": "official_device_info"
+    },
+    "00D0": {
+      "key": "WashingAndDryingCourseSetting1",
+      "name": "洗濯・乾燥コース設定１",
+      "enum": {
+        "21": "おまかせ",
+        "22": "ナイト",
+        "26": "毛布",
+        "2D": "約60 ℃おまかせ（除菌）",
+        "44": "約40 ℃おまかせ",
+        "45": "約40 ℃においスッキリ",
+        "47": "タオル",
+        "49": "約40 ℃つけおき（普段着）",
+        "4A": "約40 ℃毛布",
+        "4B": "その他独自コース",
+        "4E": "省エネ",
+        "4F": "わが家流",
+        "61": "おまかせ",
+        "62": "ナイト",
+        "65": "約40 ℃つけおき（おしゃれ着）",
+        "66": "毛布",
+        "67": "約30 ℃おしゃれ着",
+        "68": "おうちクリーニング",
+        "6A": "約60 ℃おまかせ（除菌）",
+        "7F": "槽洗浄",
+        "83": "約30 ℃槽洗浄",
+        "84": "約40 ℃おまかせ",
+        "85": "約40 ℃においスッキリ",
+        "86": "約40 ℃おしゃれ着",
+        "88": "約60 ℃槽カビクリーン",
+        "89": "約40 ℃つけおき（普段着）",
+        "8A": "約40 ℃毛布",
+        "8B": "その他独自コース",
+        "8F": "わが家流",
+        "A1": "おまかせ",
+        "A2": "毛布",
+        "A3": "おうちクリーニング",
+        "BE": "DLコース",
+        "BF": "槽乾燥",
+        "CB": "その他独自コース",
+        "CD": "ナイト",
+        "CE": "省エネ",
+        "CF": "わが家流"
+      },
+      "name_source": "official_device_info"
+    },
+    "00DB": {
+      "key": "WashingRemainingTime",
+      "name": "洗濯残り時間",
+      "enum": {},
+      "name_source": "official_device_info"
+    },
+    "00DC": {
+      "key": "DryingTimeRemaining",
+      "name": "乾燥残り時間",
+      "enum": {},
+      "name_source": "official_device_info"
+    },
+    "00E1": {
+      "key": "ImmerseStrokeTimeSettingValue",
+      "name": null,
+      "enum": {},
+      "name_source": "official_web_registry"
+    },
+    "00E2": {
+      "key": "WashingAndDryingTransitionState",
+      "name": "洗濯乾燥遷移状態",
+      "enum": {
+        "41": "運転中・洗い工程",
+        "42": "運転中・すすぎ工程",
+        "43": "運転中・脱水工程",
+        "44": "一時停止中",
+        "45": "運転終了・洗濯のみ完了",
+        "51": "運転終了・洗乾or乾燥のみ、ふんわりキープ設定なし　乾燥完了",
+        "52": "運転中・乾燥・送風工程",
+        "53": "運転終了・ふんわりキープ工程",
+        "54": "運転終了・洗乾or乾燥のみ、ふんわりキープ設定あり　ふんわりキープ完了",
+        "61": "運転前待機中",
+        "E2": "運転中・プレ乾燥工程",
+        "E4": "予洗い工程",
+        "E5": "スチーム工程",
+        "EE": "自動槽乾燥工程",
+        "EF": "運転終了"
+      },
+      "name_source": "official_device_info"
+    },
+    "00E4": {
+      "key": "AmountOfWaterSetting2",
+      "name": "水量設定２",
+      "enum": {
+        "A0": "高め",
+        "FF": "自動"
+      },
+      "name_source": "official_device_info"
+    },
+    "00E5": {
+      "key": "WashTimeSetting",
+      "name": "洗い時間設定値",
+      "enum": {
+        "00FF": "自動設定"
+      },
+      "name_source": "official_device_info"
+    },
+    "00E6": {
+      "key": "RinseTheNumberOfTimesTheSetValue",
+      "name": "すすぎ回数設定値",
+      "enum": {
+        "FF": "自動"
+      },
+      "name_source": "official_device_info"
+    },
+    "00E7": {
+      "key": "ModeSettingRinse",
+      "name": "すすぎモード設定",
+      "enum": {
+        "00000001": "ため",
+        "00000011": "ため",
+        "00000111": "ため",
+        "00001111": "ため",
+        "00000002": "注水",
+        "00000022": "注水",
+        "00000222": "注水",
+        "00002222": "注水"
+      },
+      "name_source": "official_device_info"
+    },
+    "00E8": {
+      "key": "DehydrationTimeSetting",
+      "name": "脱水時間設定値",
+      "enum": {
+        "FF": "自動設定"
+      },
+      "name_source": "official_device_info"
+    },
+    "00E9": {
+      "key": "DryingTimeSetting",
+      "name": "乾燥時間設定値",
+      "enum": {
+        "0000": "設定なし",
+        "000A": "10",
+        "001E": "30",
+        "0100": "60",
+        "011E": "90",
+        "0200": "120"
+      },
+      "name_source": "official_device_info"
+    },
+    "00EA": {
+      "key": "WashWarmWaterSetting",
+      "name": "洗い温水設定値",
+      "enum": {
+        "0F": "15℃",
+        "1E": "30℃",
+        "28": "40℃",
+        "3C": "60℃",
+        "FE": "温水不使用"
+      },
+      "name_source": "official_device_info"
+    },
+    "00EB": {
+      "key": "BathWaterSetting",
+      "name": null,
+      "enum": {},
+      "name_source": "official_web_registry"
+    },
+    "00EC": {
+      "key": "SoftKeepSetting",
+      "name": "ソフトキープ設定",
+      "enum": {
+        "41": "ふんわりキープ入",
+        "42": "ふんわりキープ切"
+      },
+      "name_source": "official_device_info"
+    },
+    "00ED": {
+      "key": "WashingAndDryingTheRemainingTime",
+      "name": "洗濯乾燥残り時間",
+      "enum": {},
+      "name_source": "official_device_info"
+    },
+    "00F0": {
+      "key": "NanoeSetting",
+      "name": null,
+      "enum": {},
+      "name_source": "official_web_registry"
+    },
+    "00F1": {
+      "key": "SettingMyFlowPlusSubMode",
+      "name": "わたし流プラスサブモード設定",
+      "enum": {
+        "01": "お好み",
+        "0B": "アプリ専用"
+      },
+      "name_source": "official_device_info"
+    },
+    "00F2": {
+      "key": "ReservationsStartRelativeTime",
+      "name": "予約開始相対時間",
+      "enum": {},
+      "name_source": "official_device_info"
+    },
+    "00F3": {
+      "key": "SettingLaundryBasketMode",
+      "name": null,
+      "enum": {},
+      "name_source": "official_web_registry"
+    },
+    "00F4": {
+      "key": "DryingMethodSetting",
+      "name": "乾燥方法設定",
+      "enum": {
+        "00": "乾燥なし",
+        "01": "標準",
+        "03": "しっかり",
+        "04": "タイマー",
+        "05": "省エネ",
+        "FE": "自動"
+      },
+      "name_source": "official_device_info"
+    },
+    "00F5": {
+      "key": "JetLoosenAndDryingSetting",
+      "name": "ジェットほぐし・乾燥設定",
+      "enum": {
+        "12": "あり",
+        "21": "あり",
+        "22": "なし"
+      },
+      "name_source": "official_device_info"
+    },
+    "00F6": {
+      "key": "SoftDehydrationetting",
+      "name": null,
+      "enum": {},
+      "name_source": "official_web_registry"
+    },
+    "00F7": {
+      "key": "AutomaticTankCleaningSet",
+      "name": "自動槽洗浄設定",
+      "enum": {
+        "01": "あり",
+        "02": "なし"
+      },
+      "name_source": "official_device_info"
+    },
+    "00F8": {
+      "key": "EcoNaviOperationSetting",
+      "name": null,
+      "enum": {},
+      "name_source": "official_web_registry"
+    },
+    "00F9": {
+      "key": "ChildLockSetting",
+      "name": "チャイルドロック設定",
+      "enum": {
+        "01": "ロック",
+        "02": "アンロック"
+      },
+      "name_source": "official_device_info"
+    },
+    "00FA": {
+      "key": "WashingAndDryingExtendCourseSetting",
+      "name": "その他独自コース設定",
+      "enum": {
+        "210081": "汚れはがし",
+        "610081": "汚れはがし",
+        "620081": "ダウンジャケット",
+        "810081": "サッと槽すすぎ",
+        "820081": "自動投入お手入れ",
+        "830081": "自動投入お手入れ（しっかり）",
+        "9C0081": "シワとり・消臭",
+        "9F0081": "はっ水回復"
+      },
+      "name_source": "official_device_info"
+    },
+    "0100": {
+      "key": "PublicLineStateConfirmationSetting",
+      "name": "遠隔制御操作状態",
+      "enum": {
+        "01": "許可する",
+        "02": "許可しない"
+      },
+      "name_source": "official_device_info"
+    },
+    "0101": {
+      "key": "HemsOperationStateSetting",
+      "name": null,
+      "enum": {},
+      "name_source": "official_web_registry"
+    },
+    "0102": {
+      "key": "WirelessConnectionStateSetting",
+      "name": null,
+      "enum": {},
+      "name_source": "official_web_registry"
+    },
+    "0120": {
+      "key": "ActionMode",
+      "name": "動作モード",
+      "enum": {
+        "01": "通常動作中",
+        "02": "特殊動作中"
+      },
+      "name_source": "official_device_info"
+    },
+    "0121": {
+      "key": "DrivingSituationMore",
+      "name": "運転状況詳細",
+      "enum": {
+        "00": "操作待機中",
+        "01": "洗い中",
+        "03": "すすぎ中",
+        "05": "脱水中",
+        "06": "乾燥中",
+        "07": "布ほぐし中",
+        "08": "ふんわりキープ中",
+        "0C": "一時停止中",
+        "0D": "乾燥残時間見直し中",
+        "0F": "修正すすぎ中",
+        "10": "泡消し攪拌中",
+        "12": "フィルタ報知中",
+        "13": "予約待機中",
+        "14": "プレ洗浄中・プレ乾燥中",
+        "16": "ジェットほぐし中",
+        "18": "ジェット乾燥中",
+        "19": "第２送風中",
+        "1A": "第２送風中＋フィルタ報知中",
+        "1B": "ふんわりキープ中＋フィルタ報知中",
+        "1C": "エコナビ点灯中",
+        "1E": "自動槽洗浄中",
+        "1F": "バスポンプ動作中",
+        "20": "ファーム更新中",
+        "21": "予洗い中",
+        "22": "自動槽乾燥待機中",
+        "23": "自動槽乾燥中",
+        "26": "スチーム中",
+        "28": "データダウンロード中"
+      },
+      "name_source": "official_device_info"
+    },
+    "0122": {
+      "key": "NotificationPermissionWasAble",
+      "name": "できたて通知許可",
+      "enum": {
+        "00": "設定なし（運転中以外）",
+        "01": "通知許可する",
+        "02": "通知許可しない"
+      },
+      "name_source": "official_device_info"
+    },
+    "0123": {
+      "key": "RemainingTimeCountdownBan",
+      "name": "残時間カウントダウン禁止",
+      "enum": {
+        "00": "設定なし（運転中以外）",
+        "01": "禁止する",
+        "02": "禁止しない"
+      },
+      "name_source": "official_device_info"
+    },
+    "0124": {
+      "key": "ProcessRemainingTime",
+      "name": "工程残り時間",
+      "enum": {},
+      "name_source": "official_device_info"
+    },
+    "0125": {
+      "key": "PreCleaningTimeSetValue",
+      "name": "プレ洗浄/プレ乾燥/",
+      "enum": {
+        "00": "設定なし"
+      },
+      "name_source": "official_device_info"
+    },
+    "0127": {
+      "key": "ProcessTimeSettingValue",
+      "name": "すすぎ時間設定値",
+      "enum": {
+        "00": "設定なし"
+      },
+      "name_source": "official_device_info"
+    },
+    "0129": {
+      "key": "TankCleanTimeSettingValue",
+      "name": "槽クリーン時間設定値",
+      "enum": {
+        "00": "設定なし"
+      },
+      "name_source": "official_device_info"
+    },
+    "012B": {
+      "key": "CourseHistory",
+      "name": "コース履歴",
+      "enum": {},
+      "name_source": "official_device_info"
+    },
+    "012C": {
+      "key": null,
+      "name": "洗濯レポート",
+      "name_source": "official_device_info",
+      "enum": {}
+    },
+    "012D": {
+      "key": null,
+      "name": "お手入れ通知",
+      "name_source": "official_device_info",
+      "enum": {
+        "00": "なし"
+      }
+    },
+    "012E": {
+      "key": null,
+      "name": "予約時間変更有無 （予約開始相対時間含む）",
+      "name_source": "official_device_info",
+      "enum": {}
+    },
+    "0130": {
+      "key": "DetergentBrandSetting",
+      "name": "洗剤銘柄設定",
+      "enum": {},
+      "name_source": "official_device_info"
+    },
+    "0131": {
+      "key": "SoftenerBrandSetting",
+      "name": "柔軟剤銘柄設定",
+      "enum": {},
+      "name_source": "official_device_info"
+    },
+    "0132": {
+      "key": "SettingDetergentInputMode",
+      "name": "洗剤投入モード設定",
+      "enum": {
+        "00": "自動投入なし（手動投入）",
+        "01": "少なめ",
+        "02": "標準",
+        "03": "多め",
+        "FF": "家電設定を利用"
+      },
+      "name_source": "official_device_info"
+    },
+    "0133": {
+      "key": "SettingSoftenerInputMode",
+      "name": "柔軟剤投入モード設定",
+      "enum": {
+        "00": "自動投入なし（手動投入）",
+        "01": "少なめ",
+        "02": "標準",
+        "03": "多め",
+        "FF": "家電設定を利用"
+      },
+      "name_source": "official_device_info"
+    },
+    "0134": {
+      "key": "AutomaticDetergentChargeSetting",
+      "name": "洗剤自動投入量設定",
+      "enum": {
+        "00": "未設定"
+      },
+      "name_source": "official_device_info"
+    },
+    "0135": {
+      "key": "AutomaticSoftenerChargeSetting",
+      "name": "柔軟剤自動投入量設定",
+      "enum": {
+        "00": "未設定"
+      },
+      "name_source": "official_device_info"
+    },
+    "0136": {
+      "key": "DetergentAutomaticInsertionTankRemainingAmount",
+      "name": "洗剤自動投入タンク残量",
+      "enum": {
+        "00": "残量あり",
+        "01": "残量少",
+        "FF": "不明、未検知"
+      },
+      "name_source": "official_device_info"
+    },
+    "0137": {
+      "key": "SoftenerAutomaticInsertionTankRemainingAmount",
+      "name": "柔軟剤自動投入タンク残量",
+      "enum": {
+        "00": "残量あり",
+        "01": "残量少",
+        "FF": "不明、未検知"
+      },
+      "name_source": "official_device_info"
+    },
+    "0138": {
+      "key": "DetergentCoefficientSetting",
+      "name": null,
+      "enum": {},
+      "name_source": "official_web_registry"
+    },
+    "0139": {
+      "key": "SoftenerCoefficientSetting",
+      "name": null,
+      "enum": {},
+      "name_source": "official_web_registry"
+    },
+    "013A": {
+      "key": "NeutralBrandSetting",
+      "name": "おしゃれ着洗剤銘柄設定",
+      "enum": {},
+      "name_source": "official_device_info"
+    },
+    "013B": {
+      "key": "SettingNeutralInputMode",
+      "name": "おしゃれ着洗剤投入モード設定",
+      "enum": {
+        "00": "自動投入なし（手動投入）",
+        "01": "少なめ",
+        "02": "標準",
+        "03": "多め",
+        "FF": "家電設定を利用"
+      },
+      "name_source": "official_device_info"
+    },
+    "013C": {
+      "key": "AutomaticNeutralChargeSetting",
+      "name": "おしゃれ着洗剤自動投入量設定",
+      "enum": {
+        "00": "未設定"
+      },
+      "name_source": "official_device_info"
+    },
+    "013D": {
+      "key": "NeutralAutomaticInsertionTankRemainingAmount",
+      "name": "おしゃれ着洗剤自動投入タンク残量",
+      "enum": {
+        "00": "残量あり",
+        "01": "残量少",
+        "FF": "不明、未検知"
+      },
+      "name_source": "official_device_info"
+    },
+    "013E": {
+      "key": "WashingProcessRemainingTime",
+      "name": "洗濯行程残り時間",
+      "enum": {},
+      "name_source": "official_device_info"
+    },
+    "013F": {
+      "key": "DryCustomCourseSetting",
+      "name": "わが家流お好み設定",
+      "enum": {},
+      "name_source": "official_device_info"
+    },
+    "0140": {
+      "key": "OperationSoundSetting",
+      "name": "操作音・終了音設定",
+      "enum": {},
+      "name_source": "official_device_info"
+    },
+    "0150": {
+      "key": "AdjustmentFunctionSetting",
+      "name": "調整機能設定",
+      "enum": {},
+      "name_source": "official_device_info"
+    },
+    "0151": {
+      "key": "AdjustmentFunctionSetting2",
+      "name": "調整機能設定2",
+      "enum": {},
+      "name_source": "official_device_info"
+    },
+    "0152": {
+      "key": "EndTimeCloudReservationSetting",
+      "name": "終了時刻クラウド予約設定",
+      "enum": {},
+      "name_source": "official_device_info"
+    },
+    "0153": {
+      "key": null,
+      "name": "AI予測余裕時間設定",
+      "name_source": "official_device_info",
+      "enum": {}
+    },
+    "0154": {
+      "key": "FavoriteCourseInfo",
+      "name": null,
+      "enum": {},
+      "name_source": "official_web_registry"
+    },
+    "0155": {
+      "key": "FavoriteCourseSetting",
+      "name": null,
+      "enum": {},
+      "name_source": "official_web_registry"
+    },
+    "0156": {
+      "key": "FavoriteCourseHistory",
+      "name": null,
+      "enum": {},
+      "name_source": "official_web_registry"
+    },
+    "0157": {
+      "key": "cloudReservationSupported",
+      "name": null,
+      "enum": {},
+      "name_source": "official_web_registry"
+    },
+    "0158": {
+      "key": "AiCloudReservationResult",
+      "name": null,
+      "enum": {},
+      "name_source": "official_web_registry"
+    },
+    "0160": {
+      "key": null,
+      "name": "運転回数",
+      "name_source": "official_device_info",
+      "enum": {}
+    },
+    "01E0": {
+      "key": "DownloadContentsSetting",
+      "name": "コンテンツ確認",
+      "enum": {},
+      "name_source": "official_device_info"
+    },
+    "01E1": {
+      "key": "DataDownloadRequest",
+      "name": null,
+      "enum": {},
+      "name_source": "official_web_registry"
+    },
+    "01E2": {
+      "key": "DownloadCourseRegistInfo",
+      "name": "コースDL登録情報",
+      "enum": {},
+      "name_source": "official_device_info"
+    },
+    "01E6": {
+      "key": "DownloadCourseSetting",
+      "name": "DLコース設定",
+      "enum": {
+        "236140": "ウール",
+        "236141": "シーツ",
+        "236142": "敷きパッド",
+        "236146": "レースカーテン",
+        "236143": "ダニバスター",
+        "241100": "お急ぎ2 kg",
+        "241101": "パワフル滝（洗い・すすぎ）",
+        "236145": "化繊60分",
+        "236144": "ダニバスター",
+        "241102": "パワフル滝（洗い・すすぎ）",
+        "24C170": "はっ水回復"
+      },
+      "name_source": "official_device_info"
+    },
+    "01F0": {
+      "key": "ConfirmUpdateFirmware",
+      "name": "本体ファーム管理",
+      "enum": {},
+      "name_source": "official_device_info"
+    },
+    "01F1": {
+      "key": "CommunicateUpdateFirmware",
+      "name": "本体ファーム更新指示",
+      "enum": {},
+      "name_source": "official_device_info"
+    },
+    "0217": {
+      "key": null,
+      "name": "乾燥終了予想AI関連 (布量判定完了時)",
+      "name_source": "official_device_info",
+      "enum": {}
+    },
+    "021C": {
+      "key": "OperationUpdateFirmware",
+      "name": null,
+      "enum": {},
+      "name_source": "official_web_registry"
+    },
+    "FF01": {
+      "key": "WirelessModuleSoftwareVersion",
+      "name": "無線モジュールソフトバージョン",
+      "enum": {},
+      "name_source": "official_device_info"
+    },
+    "FF02": {
+      "key": "RadioModuleHardwareVersion",
+      "name": "無線モジュールハードバージョン",
+      "enum": {},
+      "name_source": "official_device_info"
+    }
+  }
+}

@@ -1,0 +1,1619 @@
+openapi: 3.0.3
+info:
+  title: Panasonic Laundry API
+  description: REST API for Panasonic washing machine control and management
+  version: 5.0.0
+  contact:
+    name: Panasonic API Support
+    url: https://app.wad.apws.panasonic.com
+servers:
+  - url: https://app.wad.apws.panasonic.com
+    description: Production server
+  - url: https://stg-app.wad.apws.panasonic.com
+    description: Staging server
+
+security:
+  - cookieAuth: []
+  - bearerAuth: []
+
+paths:
+  /laundry/v5/users:
+    post:
+      summary: User login
+      tags:
+        - Authentication
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                auth0_token:
+                  type: string
+                  description: Auth0 authentication token
+      responses:
+        '200':
+          description: Successful login
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserLoginResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /laundry/v5/user:
+    post:
+      summary: Update user agreement or stop service
+      tags:
+        - User Management
+      operationId: updateUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                tos_agreed_version:
+                  type: string
+                  description: Terms of service version agreed to
+                stop_service:
+                  type: boolean
+                  description: Flag to stop service
+      responses:
+        '200':
+          description: User updated successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /laundry/v5/user/devices:
+    get:
+      summary: Get user devices
+      tags:
+        - Device Management
+      operationId: getUserDevices
+      parameters:
+        - $ref: '#/components/parameters/XApplianceId'
+      responses:
+        '200':
+          description: List of user devices
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDeviceListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      summary: Register or update device
+      tags:
+        - Device Management
+      operationId: registerDevice
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                appliance_id:
+                  type: string
+                  description: ID of the device
+                com_id:
+                  type: string
+                  description: Communication ID
+                hashed_guid:
+                  type: string
+                  description: Hashed GUID
+                nickname:
+                  type: string
+                  description: Device nickname
+                product_code:
+                  type: string
+                  description: Product code
+                purchase_info:
+                  type: object
+                  properties:
+                    purchase_date:
+                      type: string
+                      format: date
+                    shop_category_id:
+                      type: string
+                    shop_area_id:
+                      type: string
+                    shop_name:
+                      type: string
+                    memo:
+                      type: string
+      responses:
+        '200':
+          description: Device registered/updated successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /laundry/v5/user/devices/remove:
+    delete:
+      summary: Remove user device
+      tags:
+        - Device Management
+      operationId: removeDevice
+      parameters:
+        - $ref: '#/components/parameters/XApplianceId'
+      responses:
+        '200':
+          description: Device removed successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /laundry/v5/device/status/:
+    get:
+      summary: Get device status
+      tags:
+        - Device Control
+      operationId: getDeviceStatus
+      parameters:
+        - $ref: '#/components/parameters/XApplianceId'
+        - name: X-Cached
+          in: header
+          schema:
+            type: string
+            enum: ['true', 'false']
+          description: Whether to use cached data
+        - name: X-VerifyAppliance
+          in: header
+          schema:
+            type: string
+            enum: ['true', 'false']
+          description: Whether to verify appliance
+      responses:
+        '200':
+          description: Device status retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceStatusResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /laundry/v5/device/info:
+    get:
+      summary: Get device information
+      tags:
+        - Device Control
+      operationId: getDeviceInfo
+      parameters:
+        - name: product_number
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Product number of the device
+        - name: com_id
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Communication ID
+      responses:
+        '200':
+          description: Device information retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceInfoResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /laundry/v5/device/control/:
+    post:
+      summary: Control device
+      tags:
+        - Device Control
+      operationId: controlDevice
+      parameters:
+        - $ref: '#/components/parameters/XApplianceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeviceControlRequest'
+      responses:
+        '200':
+          description: Device control command executed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceControlResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /laundry/v5/laundry/command/:
+    post:
+      summary: Execute laundry command
+      tags:
+        - Device Control
+      operationId: laundryCommand
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LaundryCommandRequest'
+      responses:
+        '200':
+          description: Command executed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LaundryCommandResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /laundry/v5/device/menuitem:
+    get:
+      summary: Get device menu items
+      tags:
+        - Device Control
+      operationId: getDeviceMenuItems
+      parameters:
+        - $ref: '#/components/parameters/XApplianceId'
+      responses:
+        '200':
+          description: Menu items retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceMenuItemResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /laundry/v5/customer/course:
+    get:
+      summary: Get customer courses
+      tags:
+        - Course Management
+      operationId: getCustomerCourses
+      parameters:
+        - name: com_id
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: product_number
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Customer courses retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerCourseResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      summary: Register customer course
+      tags:
+        - Course Management
+      operationId: registerCustomerCourse
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomerCourseRegisterRequest'
+      responses:
+        '200':
+          description: Course registered successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    delete:
+      summary: Delete customer course
+      tags:
+        - Course Management
+      operationId: deleteCustomerCourse
+      parameters:
+        - name: id
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Course deleted successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /laundry/v5/custom/view:
+    get:
+      summary: Get custom view
+      tags:
+        - Course Management
+      operationId: getCustomView
+      parameters:
+        - name: wash_dry_course_code
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: com_id
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: view_id
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: command_param_value
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Custom view retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomViewResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /laundry/v5/contents/versions:
+    get:
+      summary: Get content versions
+      tags:
+        - Content Management
+      operationId: getContentVersions
+      parameters:
+        - name: com_id
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: data_id
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Content versions retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContentVersionsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /laundry/v5/notices:
+    get:
+      summary: Get notices
+      tags:
+        - Notifications
+      operationId: getNotices
+      parameters:
+        - name: language
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+        - name: offset
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Notices retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NoticesResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /laundry/v5/notices/{id}:
+    get:
+      summary: Get notice by ID
+      tags:
+        - Notifications
+      operationId: getNoticeById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Notice retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NoticeResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /laundry/v5/user/notices/setting:
+    get:
+      summary: Get notice settings
+      tags:
+        - Notifications
+      operationId: getNoticeSettings
+      parameters:
+        - $ref: '#/components/parameters/XApplianceId'
+      responses:
+        '200':
+          description: Notice settings retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NoticeSettingsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      summary: Update notice settings
+      tags:
+        - Notifications
+      operationId: updateNoticeSettings
+      parameters:
+        - $ref: '#/components/parameters/XApplianceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NoticeSettingsRequest'
+      responses:
+        '200':
+          description: Settings updated successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /laundry/v5/user/notifications:
+    post:
+      summary: Register notification token
+      tags:
+        - Notifications
+      operationId: registerNotificationToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NotificationTokenRequest'
+      responses:
+        '200':
+          description: Token registered successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /laundry/v5/user/notifications/settings:
+    get:
+      summary: Get notification settings
+      tags:
+        - Notifications
+      operationId: getNotificationSettings
+      parameters:
+        - $ref: '#/components/parameters/XApplianceId'
+      responses:
+        '200':
+          description: Notification settings retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationSettingsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      summary: Update notification settings
+      tags:
+        - Notifications
+      operationId: updateNotificationSettings
+      parameters:
+        - $ref: '#/components/parameters/XApplianceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NotificationSettingsRequest'
+      responses:
+        '200':
+          description: Settings updated successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /laundry/v5/weatherinfo/forecast:
+    get:
+      summary: Get weather forecast
+      tags:
+        - Weather
+      operationId: getWeatherForecast
+      parameters:
+        - $ref: '#/components/parameters/XApplianceId'
+      responses:
+        '200':
+          description: Weather forecast retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WeatherForecastResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /laundry/v5/weatherinfo/settings:
+    post:
+      summary: Update weather settings
+      tags:
+        - Weather
+      operationId: updateWeatherSettings
+      parameters:
+        - $ref: '#/components/parameters/XApplianceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WeatherSettingsRequest'
+      responses:
+        '200':
+          description: Weather settings updated
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /laundry/v5/user/drytime_prediction/settings:
+    get:
+      summary: Get drytime prediction settings
+      tags:
+        - Predictions
+      operationId: getDrytimePredictionSettings
+      parameters:
+        - $ref: '#/components/parameters/XApplianceId'
+      responses:
+        '200':
+          description: Settings retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DrytimePredictionSettingsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      summary: Update drytime prediction settings
+      tags:
+        - Predictions
+      operationId: updateDrytimePredictionSettings
+      parameters:
+        - $ref: '#/components/parameters/XApplianceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                use_drytime_prediction:
+                  type: boolean
+                  default: false
+      responses:
+        '200':
+          description: Settings updated successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /laundry/v5/service/supplies:
+    get:
+      summary: Get service supplies
+      tags:
+        - Services
+      operationId: getServiceSupplies
+      parameters:
+        - name: supplies_type
+          in: query
+          schema:
+            type: string
+            enum: [detergent, softener]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+        - name: offset
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Service supplies retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceSuppliesResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /laundry/v5/advertisements:
+    get:
+      summary: Get advertisements
+      tags:
+        - Content
+      operationId: getAdvertisements
+      responses:
+        '200':
+          description: Advertisements retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdvertisementsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /laundry/v5/versions/{osType}/{appVersion}:
+    get:
+      summary: Get content versions and updates
+      tags:
+        - System
+      operationId: getContentVersions
+      parameters:
+        - name: osType
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [ios, android]
+        - name: appVersion
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Version information retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VersionResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /laundry/v5/service/sites:
+    get:
+      summary: Get service sites (EC sites)
+      tags:
+        - Services
+      operationId: getServiceSites
+      responses:
+        '200':
+          description: Service sites retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceSitesResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /laundry/v5/user/purchase/settings:
+    get:
+      summary: Get user purchase settings
+      tags:
+        - User Management
+      operationId: getUserPurchaseSettings
+      parameters:
+        - $ref: '#/components/parameters/XApplianceId'
+      responses:
+        '200':
+          description: Purchase settings retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPurchaseSettingsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      summary: Set user purchase settings
+      tags:
+        - User Management
+      operationId: setUserPurchaseSettings
+      parameters:
+        - $ref: '#/components/parameters/XApplianceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                site_id:
+                  type: string
+      responses:
+        '200':
+          description: Purchase settings updated
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /laundry/v5/user/purchase/settings/remove:
+    post:
+      summary: Remove user purchase settings
+      tags:
+        - User Management
+      operationId: removeUserPurchaseSettings
+      parameters:
+        - $ref: '#/components/parameters/XApplianceId'
+      responses:
+        '200':
+          description: Purchase settings removed
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /laundry/v5/laundry/courses/search/{comId}:
+    get:
+      summary: Search laundry courses
+      tags:
+        - Course Management
+      operationId: searchCourses
+      parameters:
+        - name: comId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Courses found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CourseSearchResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: session
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    XApplianceId:
+      name: X-ApplianceId
+      in: header
+      required: true
+      schema:
+        type: string
+      description: Appliance identifier
+
+  responses:
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        code:
+          type: string
+
+    UserLoginResponse:
+      type: object
+      properties:
+        levelup:
+          type: boolean
+        tos_agreed_version:
+          type: string
+        read_message_ids:
+          type: array
+          items:
+            type: string
+        selected_device:
+          $ref: '#/components/schemas/SelectedDevice'
+        notification_term_ids:
+          type: array
+          items:
+            type: string
+        selected_supplies:
+          $ref: '#/components/schemas/SelectedSupplies'
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/Message'
+
+    SelectedDevice:
+      type: object
+      properties:
+        appliance_id:
+          type: string
+        notification_term_ids:
+          type: array
+          items:
+            type: string
+
+    SelectedSupplies:
+      type: object
+      properties:
+        detergent:
+          $ref: '#/components/schemas/Supply'
+        softener:
+          $ref: '#/components/schemas/Supply'
+
+    Supply:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        ecsite_id:
+          type: string
+
+    Message:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        registered_date:
+          type: string
+          format: date-time
+
+    UserDeviceListResponse:
+      type: object
+      properties:
+        devices:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserDevice'
+
+    UserDevice:
+      type: object
+      properties:
+        appliance_id:
+          type: string
+        product_number:
+          type: string
+        com_id:
+          type: string
+        nickname:
+          type: string
+        model_name:
+          type: string
+        model_type:
+          type: string
+          enum: ['DRUM', 'TOP']
+          description: |
+            Laundry machine types:
+            - DRUM: Drum-type washing machine
+            - TOP: Top-loading washing machine
+        registered_date:
+          type: string
+          format: date-time
+
+    DeviceStatusResponse:
+      type: object
+      properties:
+        status:
+          type: array
+          items:
+            $ref: '#/components/schemas/DeviceStatus'
+        drytime_prediction:
+          $ref: '#/components/schemas/DrytimePrediction'
+
+    DeviceStatus:
+      type: object
+      properties:
+        id:
+          type: string
+        params:
+          type: array
+          items:
+            type: object
+            properties:
+              value:
+                type: string
+
+    DrytimePrediction:
+      type: object
+      properties:
+        availability:
+          type: boolean
+        cause_code:
+          type: string
+          enum: ['I501', 'I502', 'I503', 'I504']
+          description: |
+            Drytime prediction availability cause codes:
+            - I501: Prediction not available (reason 1)
+            - I502: Prediction not available (reason 2)
+            - I503: Prediction not available (reason 3)
+            - I504: Prediction not available (reason 4)
+        cause_detail:
+          type: string
+        drytime:
+          type: integer
+          description: Predicted drying time in minutes
+        unreliability:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          description: Unreliability score (0-1, where 0 is most reliable)
+        decrease_acc:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          description: Accuracy decrease rate
+        standby:
+          type: boolean
+          description: Whether prediction is in standby mode
+
+    DeviceInfoResponse:
+      type: object
+      properties:
+        device_info:
+          type: array
+          items:
+            $ref: '#/components/schemas/DeviceInfo'
+
+    DeviceInfo:
+      type: object
+      properties:
+        com_id:
+          type: string
+        product_number:
+          type: string
+        model_name:
+          type: string
+        model_type:
+          type: string
+        firmware_version:
+          type: string
+
+    DeviceControlRequest:
+      type: object
+      required:
+        - commands
+      properties:
+        commands:
+          type: array
+          items:
+            $ref: '#/components/schemas/Command'
+
+    Command:
+      type: object
+      properties:
+        id:
+          type: string
+        value:
+          type: string
+
+    DeviceControlResponse:
+      type: object
+      properties:
+        result:
+          type: string
+        commands:
+          type: array
+          items:
+            $ref: '#/components/schemas/CommandResult'
+
+    CommandResult:
+      type: object
+      properties:
+        id:
+          type: string
+        result:
+          type: string
+
+    LaundryCommandRequest:
+      type: object
+      required:
+        - product_number
+        - com_id
+        - cmds
+      properties:
+        product_number:
+          type: string
+        com_id:
+          type: string
+        cmds:
+          type: array
+          items:
+            $ref: '#/components/schemas/LaundryCommand'
+
+    LaundryCommand:
+      type: object
+      properties:
+        id:
+          type: string
+        value:
+          type: string
+
+    LaundryCommandResponse:
+      type: object
+      properties:
+        cmd_infos:
+          type: array
+          items:
+            $ref: '#/components/schemas/CommandInfo'
+
+    CommandInfo:
+      type: object
+      properties:
+        com_id:
+          type: string
+        id:
+          type: string
+        params:
+          type: array
+          items:
+            $ref: '#/components/schemas/CommandParam'
+
+    CommandParam:
+      type: object
+      properties:
+        value:
+          type: string
+        wash_dry_course_code:
+          type: string
+          enum: ['01', '02', '03', '04', '05', '06']
+          description: |
+            Course type codes:
+            - 01: Washing and drying course
+            - 02: Washing course
+            - 03: Drying course
+            - 04: Care
+            - 05: Nanoe
+            - 06: Steam
+        wash_dry_course_name:
+          type: string
+        wash_dry_course_description:
+          type: string
+        wash_dry_course_purpose:
+          type: string
+        wash_dry_course_note:
+          type: string
+        wash_dry_course_capacity:
+          type: string
+        wash_dry_course_operating_time:
+          type: integer
+        cmd_icon_infos:
+          type: array
+          items:
+            $ref: '#/components/schemas/IconInfo'
+        specifiable_time:
+          type: boolean
+        app_available:
+          type: boolean
+        drytime_prediction_available:
+          type: boolean
+        related_cmd_id:
+          type: string
+        detergent_input_mode:
+          type: string
+          enum: ['1', '2', '3', '4', '5']
+          description: |
+            Input mode values:
+            - 1: Valid
+            - 2: Fixed use
+            - 3: Fixed not use
+            - 4: Disabled
+            - 5: Setting fixed
+        softener_input_mode:
+          type: string
+          enum: ['1', '2', '3', '4', '5']
+          description: |
+            Input mode values:
+            - 1: Valid
+            - 2: Fixed use
+            - 3: Fixed not use
+            - 4: Disabled
+            - 5: Setting fixed
+        neutral_detergent_input_mode:
+          type: string
+          enum: ['1', '2', '3', '4', '5']
+          description: |
+            Input mode values:
+            - 1: Valid
+            - 2: Fixed use
+            - 3: Fixed not use
+            - 4: Disabled
+            - 5: Setting fixed
+        neutral_detergent_exclusion:
+          type: boolean
+        bleach_input_mode:
+          type: string
+          enum: ['1', '2', '3', '4', '5']
+          description: |
+            Input mode values:
+            - 1: Valid
+            - 2: Fixed use
+            - 3: Fixed not use
+            - 4: Disabled
+            - 5: Setting fixed
+        stain_remover_input_mode:
+          type: string
+          enum: ['1', '2', '3', '4', '5']
+          description: |
+            Input mode values:
+            - 1: Valid
+            - 2: Fixed use
+            - 3: Fixed not use
+            - 4: Disabled
+            - 5: Setting fixed
+        agent_priority:
+          type: integer
+        opt_spec_times:
+          type: array
+          items:
+            type: integer
+        order_seq:
+          type: integer
+        extend_course_code:
+          type: string
+          enum: ['00', '01', '02']
+          default: '00'
+          description: |
+            Extended course codes:
+            - 00: Normal
+            - 01: App
+            - 02: Download
+        name_top:
+          type: string
+        name_center:
+          type: string
+        name_bottom:
+          type: string
+        type:
+          type: string
+        drytime_upward_available:
+          type: boolean
+
+    IconInfo:
+      type: object
+      properties:
+        id:
+          type: string
+        url:
+          type: string
+
+    DeviceMenuItemResponse:
+      type: object
+      properties:
+        menu_items:
+          type: array
+          items:
+            $ref: '#/components/schemas/MenuItem'
+
+    MenuItem:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        icon:
+          type: string
+        order:
+          type: integer
+
+    CustomerCourseResponse:
+      type: object
+      properties:
+        courses:
+          type: array
+          items:
+            $ref: '#/components/schemas/CustomerCourse'
+
+    CustomerCourse:
+      type: object
+      properties:
+        id:
+          type: string
+          pattern: '^[0-9]{6}$'
+          description: 6-digit course ID (000000 for no course)
+        name:
+          type: string
+          maxLength: 50
+        course_code:
+          type: string
+        course_type:
+          type: string
+          enum: ['1', '2']
+          description: |
+            Course tab types:
+            - 1: Self-taught course
+            - 2: Download course
+        settings:
+          type: object
+        is_downloadable:
+          type: boolean
+          default: false
+          description: Whether this course can be downloaded (max 3 download courses)
+
+    CustomerCourseRegisterRequest:
+      type: object
+      required:
+        - name
+        - course_code
+      properties:
+        name:
+          type: string
+        course_code:
+          type: string
+        settings:
+          type: object
+
+    CustomViewResponse:
+      type: object
+      properties:
+        view_data:
+          type: object
+
+    ContentVersionsResponse:
+      type: object
+      properties:
+        versions:
+          type: array
+          items:
+            $ref: '#/components/schemas/ContentVersion'
+
+    ContentVersion:
+      type: object
+      properties:
+        version:
+          type: string
+        url:
+          type: string
+        updated_date:
+          type: string
+          format: date-time
+
+    NoticesResponse:
+      type: object
+      properties:
+        notices:
+          type: array
+          items:
+            $ref: '#/components/schemas/Notice'
+        total:
+          type: integer
+
+    Notice:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        content:
+          type: string
+        date:
+          type: string
+          format: date-time
+        type:
+          type: string
+          enum: ['touch-message', 'maintenance-notice', 'pana-information', 'laundry-report', 'firmware-update', 'advertisement', '1to1']
+          description: |
+            Notice types:
+            - touch-message: Touch message
+            - maintenance-notice: Maintenance notification
+            - pana-information: Information from Panasonic
+            - laundry-report: Laundry report
+            - firmware-update: Firmware update notification
+            - advertisement: Advertisement
+            - 1to1: One-to-one message
+        sub_type:
+          type: string
+          enum: ['tank', 'dry-filter', 'drainage-filter', 'advertisement', 'server-maintenance', 'recall', 'service-end', 'update', 'course-proposal', 'tips', 'campaign', 'questionnaire', 'dlct-new-course', 'dlct-advertisement', 'dlct-important']
+          description: |
+            Notice sub-types:
+            - tank: Tank cleaning
+            - dry-filter: Drying filter
+            - drainage-filter: Drainage filter
+            - advertisement: Advertisement
+            - server-maintenance: Server maintenance
+            - recall: Product recall
+            - service-end: Service termination
+            - update: Update notification
+            - course-proposal: Course proposal
+            - tips: Usage tips
+            - campaign: Campaign
+            - questionnaire: Survey
+            - dlct-new-course: New download course
+            - dlct-advertisement: Download course advertisement
+            - dlct-important: Important download course info
+
+    NoticeResponse:
+      type: object
+      properties:
+        notice:
+          $ref: '#/components/schemas/Notice'
+
+    NoticeSettingsResponse:
+      type: object
+      properties:
+        settings:
+          type: object
+
+    NoticeSettingsRequest:
+      type: object
+      properties:
+        settings:
+          type: object
+
+    NotificationTokenRequest:
+      type: object
+      required:
+        - token
+        - os_type
+      properties:
+        token:
+          type: string
+        os_type:
+          type: string
+          enum: [ios, android]
+
+    NotificationSettingsResponse:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+        types:
+          type: array
+          items:
+            type: string
+
+    NotificationSettingsRequest:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+        types:
+          type: array
+          items:
+            type: string
+
+    WeatherForecastResponse:
+      type: object
+      properties:
+        forecast:
+          type: array
+          items:
+            $ref: '#/components/schemas/WeatherData'
+
+    WeatherData:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+        weather:
+          type: string
+        temperature:
+          type: object
+          properties:
+            min:
+              type: number
+            max:
+              type: number
+        humidity:
+          type: number
+        precipitation:
+          type: number
+
+    WeatherSettingsRequest:
+      type: object
+      properties:
+        location:
+          type: object
+          properties:
+            latitude:
+              type: number
+            longitude:
+              type: number
+
+    DrytimePredictionSettingsResponse:
+      type: object
+      properties:
+        use_drytime_prediction:
+          type: boolean
+
+    ServiceSuppliesResponse:
+      type: object
+      properties:
+        supplies:
+          type: array
+          items:
+            $ref: '#/components/schemas/ServiceSupply'
+        total:
+          type: integer
+
+    ServiceSupply:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        type:
+          type: string
+          enum: [detergent, softener]
+        manufacturer:
+          type: string
+        ecsite_id:
+          type: string
+        image_url:
+          type: string
+
+    AdvertisementsResponse:
+      type: object
+      properties:
+        advertisements:
+          type: array
+          items:
+            $ref: '#/components/schemas/Advertisement'
+
+    Advertisement:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        content:
+          type: string
+        image_url:
+          type: string
+        link_url:
+          type: string
+        start_date:
+          type: string
+          format: date-time
+        end_date:
+          type: string
+          format: date-time
+
+    VersionResponse:
+      type: object
+      properties:
+        absolute:
+          type: boolean
+        tos:
+          type: object
+          properties:
+            version:
+              type: string
+            url:
+              type: string
+        models:
+          type: object
+          properties:
+            version:
+              type: string
+            url:
+              type: string
+        contents:
+          type: array
+          items:
+            type: object
+            properties:
+              screen_id:
+                type: string
+              version:
+                type: string
+              url:
+                type: string
+              update_date:
+                type: string
+              message:
+                type: string
+        external_sites:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              version:
+                type: string
+              url:
+                type: string
+        fwup_contents:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              version:
+                type: string
+              url:
+                type: string
+
+    ServiceSitesResponse:
+      type: object
+      properties:
+        sites:
+          type: array
+          items:
+            $ref: '#/components/schemas/ServiceSite'
+
+    ServiceSite:
+      type: object
+      properties:
+        site_id:
+          type: string
+        site_url:
+          type: string
+        icon_url:
+          type: string
+        site_name:
+          type: string
+        is_activate:
+          type: boolean
+        order_no:
+          type: integer
+
+    UserPurchaseSettingsResponse:
+      type: object
+      properties:
+        site_id:
+          type: string
+        product_code:
+          type: string
+        setting_status:
+          type: string
+        purchase_status:
+          type: string
+
+    CourseSearchResponse:
+      type: object
+      properties:
+        courses:
+          type: array
+          items:
+            type: object
+            properties:
+              course_id:
+                type: string
+              course_name:
+                type: string
+              course_type:
+                type: string 

@@ -1,0 +1,18 @@
+[package]
+name = "laundry-automation"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.86"
+
+[dependencies]
+anyhow = "1"
+base64 = "0.22"
+chrono = "0.4"
+clap = { version = "4.5", features = ["derive"] }
+rand = "0.9"
+regex = "1"
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }
+serde_json = "1"
+sha2 = "0.10"
+tiny_http = "0.12"
+url = "2"

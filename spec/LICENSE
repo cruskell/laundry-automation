@@ -1,0 +1,71 @@
+## License
+
+### 0. Non‑Affiliation & Trademark Notice  
+This work is an **independent, community‑driven, educational project**.  
+It is **not affiliated with, endorsed by, or sponsored by Panasonic Corporation or any of its subsidiaries**.  
+“Panasonic”, product names, and logos are **registered trademarks of their respective owners**; no trademark or other proprietary right is claimed.  
+**All references to such trademarks are solely for the purpose of factual description or interoperability.**
+
+---
+
+### 1. Purpose & Scope of Reverse Engineering  
+- **Origin** The API specification was *reverse‑engineered* solely from client‑side JavaScript traffic **lawfully and publicly transmitted** by official services.  
+- **Purpose** The specification is provided **exclusively for research, security analysis, and interoperability testing** in accordance with  
+  - Japan Copyright Act §30‑4 (技術解析のための複製等),  
+  - Article 6 of the EU Directive 2009/24/EC (interoperability), and  
+  - **17 U.S.C. §1201(f)** (U.S. DMCA interoperability exception),  
+  or equivalent fair‑use / decompilation exceptions in other jurisdictions.  
+- **No circumvention** The project **does not bypass** DRM, authentication, or other effective technological protection measures.  
+- **No proprietary assets included** Firmware binaries, copyrighted images, or proprietary data files are **not distributed** with this specification. Users must obtain them from legitimate sources.
+
+---
+
+### 2. License Grant (MIT‑style)  
+Copyright (c) 2025 s-zaizen and contributors  
+
+Permission is hereby granted, free of charge, to any person obtaining a copy  
+of this specification (the “Software”), to deal in the Software without  
+restriction, including without limitation the rights to use, copy, modify,  
+merge, publish, distribute, sublicense, and/or sell copies of the Software,  
+**solely to the extent such activities are permissible under applicable law**,  
+subject to the following conditions:
+
+1. **Attribution** – You must retain this entire license notice in any copies or substantial portions of the Software.  
+2. **Non‑endorsement** – You may not state or imply that Panasonic or any other right holder endorses your derivative works.  
+3. **Compliance** – You are responsible for ensuring that your use complies with all applicable service terms, export regulations, and intellectual‑property laws in your jurisdiction.  
+4. **Third‑party notices** – This license does not grant permission to use third‑party trademarks, service marks, or copyrighted materials beyond what is allowed by law.
+
+THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR  
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,  
+FITNESS FOR A PARTICULAR PURPOSE AND NON‑INFRINGEMENT. IN NO EVENT SHALL THE  
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER  
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,  
+OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN  
+THE SOFTWARE.
+
+---
+
+### 3. Limitation of Liability  
+> **THE AUTHORS SHALL NOT BE LIABLE** for any losses (including service outages, account suspension, indirect or consequential damages) arising out of the use of this specification, **even if** advised of the possibility of such damage.
+
+---
+
+### 4. Governing Law & Venue  
+Unless superseded by mandatory local law, this license shall be governed by **Japanese law**, and disputes shall be submitted to the **Tokyo District Court** as the agreed exclusive jurisdiction.
+
+---
+
+### 5. Reservation of Rights  
+Nothing in this license shall be construed as   
+- granting rights beyond those necessary for legitimate reverse‑engineering exceptions, or   
+- waiving any rights Panasonic Corporation or third parties may hold.
+
+---
+
+### 6. Severability  
+If any provision of this license is held to be unenforceable, the remaining provisions shall remain in full force and effect.
+
+---
+
+### 7. Acceptance  
+**By exercising any rights granted herein, you accept and agree to be bound by the terms of this license.**
