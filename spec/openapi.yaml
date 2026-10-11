@@ -1,1548 +1,2617 @@
 openapi: 3.0.3
 info:
-  title: Panasonic Laundry API
-  description: REST API for Panasonic washing machine control and management
-  version: 5.0.0
-  contact:
-    name: Panasonic API Support
-    url: https://app.wad.apws.panasonic.com
+  title: Panasonic SmartLaundry API (community-maintained)
+  version: 5.0.1
+  description: 'Derived from s-zaizen/panasonic-smartlaundry-api (license: spec/LICENSE), corrected
+    against official FY26_2nd main.d8aa4ffb.js source map and authenticated responses. Independent
+    project; not an official Panasonic contract. Unknown fields are retained; response shape evidence
+    is model-specific. Writes have not been executed against production.'
+  x-source-map-sha256: 28e1fc15b6781fb7c722b33afb5c9a47489928b5d8304460d8e1d97f4ac3ea1f
 servers:
-  - url: https://app.wad.apws.panasonic.com
-    description: Production server
-  - url: https://stg-app.wad.apws.panasonic.com
-    description: Staging server
-
+- url: https://app.wad.apws.panasonic.com
+  description: Observed production origin
 security:
-  - cookieAuth: []
-  - bearerAuth: []
-
+- bearerAuth: []
+x-client-headers:
+  User-Agent: laundry-automation/<version>
+  Content-Language: ja_JP
+  X-Timestamp: YYYYMMDDHHmmss+0900
+  Cookie: atkn=<access_token>
 paths:
   /laundry/v5/users:
     post:
-      summary: User login
-      tags:
-        - Authentication
-      operationId: login
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                auth0_token:
-                  type: string
-                  description: Auth0 authentication token
+      operationId: getOrLoginUser
+      summary: Fetch current user or perform login
+      x-verification: production-read
       responses:
         '200':
-          description: Successful login
+          description: Successful HTTP result; see schema and command-specific status fields.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/UserLoginResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
-
-  /laundry/v5/user:
-    post:
-      summary: Update user agreement or stop service
-      tags:
-        - User Management
-      operationId: updateUser
+        default:
+          description: API error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                tos_agreed_version:
-                  type: string
-                  description: Terms of service version agreed to
-                stop_service:
-                  type: boolean
-                  description: Flag to stop service
+              $ref: '#/components/schemas/UserLoginRequest'
+      x-cli-operations:
+      - variant: Login
+        name: login
+      - variant: UserInfo
+        name: user-info
+        generated_body:
+          type: 0
+      - variant: NotificationTerminals
+        name: notification-terminals
+        generated_body:
+          type: 0
+        projection: notification_term_ids
+      description: type=0 verified as user info retrieval. type=1 source-confirmed login, not production-tested.
+        Bearer authentication is required.
+  /laundry/v5/user:
+    post:
+      operationId: updateUser
+      summary: Update user information
+      x-verification: source-and-mock
       responses:
         '200':
-          description: User updated successfully
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
+          description: Successful HTTP result; see schema and command-specific status fields.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MutationResponse'
+        default:
+          description: API error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserUpdateRequest'
+      x-cli-operations:
+      - variant: UpdateUser
+        name: update-user
   /laundry/v5/user/devices:
     get:
-      summary: Get user devices
-      tags:
-        - Device Management
       operationId: getUserDevices
-      parameters:
-        - $ref: '#/components/parameters/XApplianceId'
+      summary: Get registered appliances
+      x-verification: production-read
       responses:
         '200':
-          description: List of user devices
+          description: Successful HTTP result; see schema and command-specific status fields.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/UserDeviceListResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
+        default:
+          description: API error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      parameters:
+      - name: X-ApplianceId
+        in: header
+        required: false
+        schema:
+          type: string
+          minLength: 1
     post:
-      summary: Register or update device
-      tags:
-        - Device Management
       operationId: registerDevice
+      summary: Register or update an appliance
+      x-verification: source-and-mock
+      responses:
+        '200':
+          description: Successful HTTP result; see schema and command-specific status fields.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MutationResponse'
+        default:
+          description: API error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                appliance_id:
-                  type: string
-                  description: ID of the device
-                com_id:
-                  type: string
-                  description: Communication ID
-                hashed_guid:
-                  type: string
-                  description: Hashed GUID
-                nickname:
-                  type: string
-                  description: Device nickname
-                product_code:
-                  type: string
-                  description: Product code
-                purchase_info:
-                  type: object
-                  properties:
-                    purchase_date:
-                      type: string
-                      format: date
-                    shop_category_id:
-                      type: string
-                    shop_area_id:
-                      type: string
-                    shop_name:
-                      type: string
-                    memo:
-                      type: string
-      responses:
-        '200':
-          description: Device registered/updated successfully
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
+              $ref: '#/components/schemas/DeviceRegistrationRequest'
+      x-cli-operations:
+      - variant: RegisterDevice
+        name: register-device
   /laundry/v5/user/devices/remove:
-    delete:
-      summary: Remove user device
-      tags:
-        - Device Management
+    post:
       operationId: removeDevice
-      parameters:
-        - $ref: '#/components/parameters/XApplianceId'
+      summary: Remove registered appliances
+      x-verification: source-and-mock
       responses:
         '200':
-          description: Device removed successfully
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
-  /laundry/v5/device/status/:
+          description: Successful HTTP result; see schema and command-specific status fields.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MutationResponse'
+        default:
+          description: API error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeviceRemovalRequest'
+      x-cli-operations:
+      - variant: RemoveDevice
+        name: remove-device
+        appliance: true
+        generated_body:
+          appliance_ids:
+          - $appliance_id
+  /laundry/v5/device/status:
     get:
-      summary: Get device status
-      tags:
-        - Device Control
       operationId: getDeviceStatus
-      parameters:
-        - $ref: '#/components/parameters/XApplianceId'
-        - name: X-Cached
-          in: header
-          schema:
-            type: string
-            enum: ['true', 'false']
-          description: Whether to use cached data
-        - name: X-VerifyAppliance
-          in: header
-          schema:
-            type: string
-            enum: ['true', 'false']
-          description: Whether to verify appliance
+      summary: Fetch appliance status
+      x-verification: production-read
       responses:
         '200':
-          description: Device status retrieved
+          description: Successful HTTP result; see schema and command-specific status fields.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/DeviceStatusResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
+        default:
+          description: API error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      parameters:
+      - name: X-ApplianceId
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      - name: X-Cached
+        in: header
+        required: false
+        schema:
+          type: string
+          enum:
+          - 'true'
+          - 'false'
+      - name: X-VerifyAppliance
+        in: header
+        required: false
+        schema:
+          type: string
+          enum:
+          - 'true'
+          - 'false'
   /laundry/v5/device/info:
     get:
-      summary: Get device information
-      tags:
-        - Device Control
       operationId: getDeviceInfo
-      parameters:
-        - name: product_number
-          in: query
-          required: true
-          schema:
-            type: string
-          description: Product number of the device
-        - name: com_id
-          in: query
-          required: true
-          schema:
-            type: string
-          description: Communication ID
+      summary: Fetch model capabilities
+      x-verification: production-read
       responses:
         '200':
-          description: Device information retrieved
+          description: Successful HTTP result; see schema and command-specific status fields.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/DeviceInfoResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
-  /laundry/v5/device/control/:
-    post:
-      summary: Control device
-      tags:
-        - Device Control
-      operationId: controlDevice
+        default:
+          description: API error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
       parameters:
-        - $ref: '#/components/parameters/XApplianceId'
+      - name: product_number
+        in: query
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      - name: com_id
+        in: query
+        required: true
+        schema:
+          type: string
+          minLength: 1
+  /laundry/v5/device/control:
+    post:
+      operationId: controlDevice
+      summary: Read or write ECHONET properties
+      x-verification: production-read
+      responses:
+        '200':
+          description: Successful HTTP result; see schema and command-specific status fields.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceControlResponse'
+        default:
+          description: API error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      parameters:
+      - name: X-ApplianceId
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
       requestBody:
         required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/DeviceControlRequest'
+      x-cli-operations:
+      - variant: ControlRead
+        name: control-read
+        request_schema: ControlReadEnvelope
+      - variant: ControlWrite
+        name: control-write
+        request_schema: ControlWriteEnvelope
+      description: Read type 03 verified; write type 02 mock-tested. API supports start 00B2=41;
+        generic CLI write rejects it and requires guarded start. Result must match appliance/type/sequence
+        with cmd_result=true and both status codes 200. No CLI-specific one-appliance limit is asserted
+        as an API restriction.
+  /laundry/v5/laundry/command:
+    post:
+      operationId: getLaundryCommandMetadata
+      summary: Fetch course command metadata (not a control write)
+      x-verification: production-read
       responses:
         '200':
-          description: Device control command executed
+          description: Successful HTTP result; see schema and command-specific status fields.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DeviceControlResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
-  /laundry/v5/laundry/command/:
-    post:
-      summary: Execute laundry command
-      tags:
-        - Device Control
-      operationId: laundryCommand
+                $ref: '#/components/schemas/LaundryCommandResponse'
+        default:
+          description: API error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
       requestBody:
         required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/LaundryCommandRequest'
-      responses:
-        '200':
-          description: Command executed successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/LaundryCommandResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
+      x-cli-operations:
+      - variant: CommandDetails
+        name: command-details
   /laundry/v5/device/menuitem:
     get:
-      summary: Get device menu items
-      tags:
-        - Device Control
       operationId: getDeviceMenuItems
-      parameters:
-        - $ref: '#/components/parameters/XApplianceId'
+      summary: Fetch purchase-region and shop-category choices
+      x-verification: production-read
       responses:
         '200':
-          description: Menu items retrieved
+          description: Successful HTTP result; see schema and command-specific status fields.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/DeviceMenuItemResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
+        default:
+          description: API error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      parameters:
+      - name: X-ApplianceId
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      x-cli-operations:
+      - variant: MenuItems
+        name: menu-items
   /laundry/v5/customer/course:
     get:
-      summary: Get customer courses
-      tags:
-        - Course Management
       operationId: getCustomerCourses
-      parameters:
-        - name: com_id
-          in: query
-          required: true
-          schema:
-            type: string
-        - name: product_number
-          in: query
-          required: true
-          schema:
-            type: string
+      summary: Fetch custom courses
+      x-verification: production-read
       responses:
         '200':
-          description: Customer courses retrieved
+          description: Successful HTTP result; see schema and command-specific status fields.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/CustomerCourseResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
+        default:
+          description: API error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      parameters:
+      - name: X-ApplianceId
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      - name: wash_dry_course_code
+        in: query
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      - name: base_course
+        in: query
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      x-cli-operations:
+      - variant: CustomerCourses
+        name: customer-courses
     post:
-      summary: Register customer course
-      tags:
-        - Course Management
-      operationId: registerCustomerCourse
+      operationId: updateCustomerCourses
+      summary: Add, edit, or delete customer courses
+      x-verification: source-and-mock
+      responses:
+        '200':
+          description: Successful HTTP result; see schema and command-specific status fields.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MutationResponse'
+        default:
+          description: API error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
       requestBody:
         required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/CustomerCourseRegisterRequest'
-      responses:
-        '200':
-          description: Course registered successfully
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
-    delete:
-      summary: Delete customer course
-      tags:
-        - Course Management
-      operationId: deleteCustomerCourse
-      parameters:
-        - name: id
-          in: query
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Course deleted successfully
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
+      x-cli-operations:
+      - variant: RegisterCourse
+        name: register-course
+        appliance: true
+        request_schema: CourseAddRequest
+      - variant: EditCourse
+        name: edit-course
+        appliance: true
+        request_schema: CourseEditRequest
+      - variant: DeleteCourse
+        name: delete-course
+        appliance: true
+        request_schema: CourseDeleteRequest
   /laundry/v5/custom/view:
     get:
-      summary: Get custom view
-      tags:
-        - Course Management
       operationId: getCustomView
-      parameters:
-        - name: wash_dry_course_code
-          in: query
-          required: true
-          schema:
-            type: string
-        - name: com_id
-          in: query
-          required: true
-          schema:
-            type: string
-        - name: view_id
-          in: query
-          required: true
-          schema:
-            type: string
-        - name: command_param_value
-          in: query
-          required: true
-          schema:
-            type: string
+      summary: Fetch custom-course view metadata
+      x-verification: production-read
       responses:
         '200':
-          description: Custom view retrieved
+          description: Successful HTTP result; see schema and command-specific status fields.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/CustomViewResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
+        default:
+          description: API error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      parameters:
+      - name: wash_dry_course_code
+        in: query
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      - name: com_id
+        in: query
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      - name: view_id
+        in: query
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      - name: command_param_value
+        in: query
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      x-cli-operations:
+      - variant: CustomView
+        name: custom-view
   /laundry/v5/contents/versions:
     get:
-      summary: Get content versions
-      tags:
-        - Content Management
       operationId: getContentVersions
-      parameters:
-        - name: com_id
-          in: query
-          required: true
-          schema:
-            type: string
-        - name: data_id
-          in: query
-          required: true
-          schema:
-            type: string
+      summary: Fetch download content versions
+      x-verification: production-read
       responses:
         '200':
-          description: Content versions retrieved
+          description: Successful HTTP result; see schema and command-specific status fields.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ContentVersionsResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
+        default:
+          description: API error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      parameters:
+      - name: com_id
+        in: query
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      - name: data_id
+        in: query
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      x-cli-operations:
+      - variant: ContentVersions
+        name: content-versions
   /laundry/v5/notices:
     get:
-      summary: Get notices
-      tags:
-        - Notifications
       operationId: getNotices
-      parameters:
-        - name: language
-          in: query
-          schema:
-            type: string
-        - name: limit
-          in: query
-          schema:
-            type: integer
-        - name: offset
-          in: query
-          schema:
-            type: integer
+      summary: Fetch paginated notifications
+      x-verification: production-read
       responses:
         '200':
-          description: Notices retrieved
+          description: Successful HTTP result; see schema and command-specific status fields.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/NoticesResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
-  /laundry/v5/notices/{id}:
-    get:
-      summary: Get notice by ID
-      tags:
-        - Notifications
-      operationId: getNoticeById
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Notice retrieved
+        default:
+          description: API error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/NoticeResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
-  /laundry/v5/user/notices/setting:
-    get:
-      summary: Get notice settings
-      tags:
-        - Notifications
-      operationId: getNoticeSettings
+                $ref: '#/components/schemas/ErrorResponse'
       parameters:
-        - $ref: '#/components/parameters/XApplianceId'
+      - name: language
+        in: query
+        required: false
+        schema:
+          type: string
+          minLength: 1
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+      - name: from_index
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+      - name: X-ApplianceId
+        in: header
+        required: false
+        schema:
+          type: string
+          minLength: 1
+      x-cli-operations:
+      - variant: Notices
+        name: notices
+      - variant: Notice
+        name: notice
+        appliance: true
+        lookup: notice
+        extra_params:
+        - name: id
+          in: local
+          required: true
+          schema:
+            type: string
+            minLength: 1
+        only_params:
+        - id
+      description: from_index is used by the official app. offset is retained as an unverified compatibility
+        parameter. CLI notice details are a local lookup, not GET /notices/{id}.
+  /laundry/v5/notices/{id}:
+    post:
+      operationId: markNoticeRead
+      summary: Mark notification read
+      x-verification: source-and-mock
       responses:
         '200':
-          description: Notice settings retrieved
+          description: Successful HTTP result; see schema and command-specific status fields.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MutationResponse'
+        default:
+          description: API error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      parameters:
+      - name: X-ApplianceId
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MarkNoticeReadRequest'
+      x-cli-operations:
+      - variant: MarkNoticeRead
+        name: mark-notice-read
+        generated_body:
+          read_state: true
+  /laundry/v5/user/notices/setting:
+    get:
+      operationId: getNoticeSettings
+      summary: Fetch Pana notice settings
+      x-verification: production-read
+      responses:
+        '200':
+          description: Successful HTTP result; see schema and command-specific status fields.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/NoticeSettingsResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
-    post:
-      summary: Update notice settings
-      tags:
-        - Notifications
-      operationId: updateNoticeSettings
+        default:
+          description: API error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
       parameters:
-        - $ref: '#/components/parameters/XApplianceId'
+      - name: X-ApplianceId
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      - name: X-TermId
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+        x-cli-name: term_id
+      x-cli-operations:
+      - variant: NoticeSettings
+        name: notice-settings
+    post:
+      operationId: updateNoticeSettings
+      summary: Update Pana notice settings
+      x-verification: source-and-mock
+      responses:
+        '200':
+          description: Successful HTTP result; see schema and command-specific status fields.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MutationResponse'
+        default:
+          description: API error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
       requestBody:
         required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/NoticeSettingsRequest'
-      responses:
-        '200':
-          description: Settings updated successfully
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
-  /laundry/v5/user/notifications:
-    post:
-      summary: Register notification token
-      tags:
-        - Notifications
-      operationId: registerNotificationToken
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/NotificationTokenRequest'
-      responses:
-        '200':
-          description: Token registered successfully
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
+      x-cli-operations:
+      - variant: UpdateNoticeSettings
+        name: update-notice-settings
+        appliance: true
   /laundry/v5/user/notifications/settings:
     get:
-      summary: Get notification settings
-      tags:
-        - Notifications
       operationId: getNotificationSettings
-      parameters:
-        - $ref: '#/components/parameters/XApplianceId'
+      summary: Fetch Push notification settings
+      x-verification: production-read
       responses:
         '200':
-          description: Notification settings retrieved
+          description: Successful HTTP result; see schema and command-specific status fields.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/NotificationSettingsResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
-    post:
-      summary: Update notification settings
-      tags:
-        - Notifications
-      operationId: updateNotificationSettings
+        default:
+          description: API error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
       parameters:
-        - $ref: '#/components/parameters/XApplianceId'
+      - name: X-ApplianceId
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      - name: X-TermId
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+        x-cli-name: term_id
+      x-cli-operations:
+      - variant: NotificationSettings
+        name: notification-settings
+    post:
+      operationId: updateNotificationSettings
+      summary: Update Push notification settings
+      x-verification: source-and-mock
+      responses:
+        '200':
+          description: Successful HTTP result; see schema and command-specific status fields.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MutationResponse'
+        default:
+          description: API error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
       requestBody:
         required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/NotificationSettingsRequest'
+      x-cli-operations:
+      - variant: UpdateNotificationSettings
+        name: update-notification-settings
+        appliance: true
+  /laundry/v5/user/notifications:
+    post:
+      operationId: registerNotificationToken
+      summary: Register push notification terminal
+      x-verification: source-and-mock
       responses:
         '200':
-          description: Settings updated successfully
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
+          description: Successful HTTP result; see schema and command-specific status fields.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MutationResponse'
+        default:
+          description: API error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NotificationTokenRequest'
+      x-cli-operations:
+      - variant: RegisterNotificationToken
+        name: register-notification-token
   /laundry/v5/weatherinfo/forecast:
     get:
-      summary: Get weather forecast
-      tags:
-        - Weather
       operationId: getWeatherForecast
-      parameters:
-        - $ref: '#/components/parameters/XApplianceId'
+      summary: Fetch weather forecast
+      x-verification: production-read
       responses:
         '200':
-          description: Weather forecast retrieved
+          description: Successful HTTP result; see schema and command-specific status fields.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/WeatherForecastResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
+        default:
+          description: API error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      parameters:
+      - name: X-ApplianceId
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      x-cli-operations:
+      - variant: WeatherForecast
+        name: weather-forecast
   /laundry/v5/weatherinfo/settings:
     post:
-      summary: Update weather settings
-      tags:
-        - Weather
       operationId: updateWeatherSettings
+      summary: Update weather region
+      x-verification: source-and-mock
+      responses:
+        '200':
+          description: Successful HTTP result; see schema and command-specific status fields.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MutationResponse'
+        default:
+          description: API error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
       parameters:
-        - $ref: '#/components/parameters/XApplianceId'
+      - name: X-ApplianceId
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
       requestBody:
         required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/WeatherSettingsRequest'
-      responses:
-        '200':
-          description: Weather settings updated
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
+      x-cli-operations:
+      - variant: UpdateWeatherSettings
+        name: update-weather-settings
   /laundry/v5/user/drytime_prediction/settings:
     get:
-      summary: Get drytime prediction settings
-      tags:
-        - Predictions
-      operationId: getDrytimePredictionSettings
-      parameters:
-        - $ref: '#/components/parameters/XApplianceId'
+      operationId: getPredictionSettings
+      summary: Fetch drying prediction settings
+      x-verification: production-read
       responses:
         '200':
-          description: Settings retrieved
+          description: Successful HTTP result; see schema and command-specific status fields.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/DrytimePredictionSettingsResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
-    post:
-      summary: Update drytime prediction settings
-      tags:
-        - Predictions
-      operationId: updateDrytimePredictionSettings
+        default:
+          description: API error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
       parameters:
-        - $ref: '#/components/parameters/XApplianceId'
+      - name: X-ApplianceId
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      x-cli-operations:
+      - variant: PredictionSettings
+        name: prediction-settings
+    post:
+      operationId: updatePredictionSettings
+      summary: Update drying prediction settings
+      x-verification: source-and-mock
+      responses:
+        '200':
+          description: Successful HTTP result; see schema and command-specific status fields.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MutationResponse'
+        default:
+          description: API error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      parameters:
+      - name: X-ApplianceId
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                use_drytime_prediction:
-                  type: boolean
-                  default: false
-      responses:
-        '200':
-          description: Settings updated successfully
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
+              $ref: '#/components/schemas/DrytimePredictionSettingsRequest'
+      x-cli-operations:
+      - variant: UpdatePredictionSettings
+        name: update-prediction-settings
   /laundry/v5/service/supplies:
     get:
-      summary: Get service supplies
-      tags:
-        - Services
       operationId: getServiceSupplies
-      parameters:
-        - name: supplies_type
-          in: query
-          schema:
-            type: string
-            enum: [detergent, softener]
-        - name: limit
-          in: query
-          schema:
-            type: integer
-        - name: offset
-          in: query
-          schema:
-            type: integer
+      summary: Fetch supplies catalog
+      x-verification: production-read
       responses:
         '200':
-          description: Service supplies retrieved
+          description: Successful HTTP result; see schema and command-specific status fields.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ServiceSuppliesResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
+        default:
+          description: API error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      parameters:
+      - name: supplies_type
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - detergent
+          - softener
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+      x-cli-operations:
+      - variant: Supplies
+        name: supplies
   /laundry/v5/advertisements:
     get:
-      summary: Get advertisements
-      tags:
-        - Content
       operationId: getAdvertisements
+      summary: Fetch product advertisements
+      x-verification: production-read
       responses:
         '200':
-          description: Advertisements retrieved
+          description: Successful HTTP result; see schema and command-specific status fields.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/AdvertisementsResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
+        default:
+          description: API error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      parameters:
+      - name: X-Product-Number
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+        x-cli-name: product_number
+      x-cli-operations:
+      - variant: Advertisements
+        name: advertisements
   /laundry/v5/versions/{osType}/{appVersion}:
     get:
-      summary: Get content versions and updates
-      tags:
-        - System
-      operationId: getContentVersions
-      parameters:
-        - name: osType
-          in: path
-          required: true
-          schema:
-            type: string
-            enum: [ios, android]
-        - name: appVersion
-          in: path
-          required: true
-          schema:
-            type: string
+      operationId: getAppVersions
+      summary: Fetch app content and model catalog versions
+      x-verification: production-read
       responses:
         '200':
-          description: Version information retrieved
+          description: Successful HTTP result; see schema and command-specific status fields.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/VersionResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
+        default:
+          description: API error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      parameters:
+      - name: osType
+        in: path
+        required: true
+        schema:
+          type: string
+          enum:
+          - ios
+          - android
+      - name: appVersion
+        in: path
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      x-cli-operations:
+      - variant: Versions
+        name: versions
   /laundry/v5/service/sites:
     get:
-      summary: Get service sites (EC sites)
-      tags:
-        - Services
       operationId: getServiceSites
+      summary: Fetch purchase service sites
+      x-verification: production-read
       responses:
         '200':
-          description: Service sites retrieved
+          description: Successful HTTP result; see schema and command-specific status fields.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ServiceSitesResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
+        default:
+          description: API error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      x-cli-operations:
+      - variant: ServiceSites
+        name: service-sites
   /laundry/v5/user/purchase/settings:
     get:
-      summary: Get user purchase settings
-      tags:
-        - User Management
-      operationId: getUserPurchaseSettings
-      parameters:
-        - $ref: '#/components/parameters/XApplianceId'
+      operationId: getPurchaseSettings
+      summary: Fetch purchase settings
+      x-verification: production-read
       responses:
         '200':
-          description: Purchase settings retrieved
+          description: Successful HTTP result; see schema and command-specific status fields.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/UserPurchaseSettingsResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
-    post:
-      summary: Set user purchase settings
-      tags:
-        - User Management
-      operationId: setUserPurchaseSettings
+        default:
+          description: API error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
       parameters:
-        - $ref: '#/components/parameters/XApplianceId'
+      - name: X-ApplianceId
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      x-cli-operations:
+      - variant: PurchaseSettings
+        name: purchase-settings
+    post:
+      operationId: updatePurchaseSettings
+      summary: Update purchase site
+      x-verification: source-and-mock
+      responses:
+        '200':
+          description: Successful HTTP result; see schema and command-specific status fields.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MutationResponse'
+        default:
+          description: API error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      parameters:
+      - name: X-ApplianceId
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                site_id:
-                  type: string
-      responses:
-        '200':
-          description: Purchase settings updated
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
+              $ref: '#/components/schemas/PurchaseSettingsRequest'
+      x-cli-operations:
+      - variant: UpdatePurchaseSettings
+        name: update-purchase-settings
   /laundry/v5/user/purchase/settings/remove:
     post:
-      summary: Remove user purchase settings
-      tags:
-        - User Management
-      operationId: removeUserPurchaseSettings
-      parameters:
-        - $ref: '#/components/parameters/XApplianceId'
+      operationId: removePurchaseSettings
+      summary: Remove purchase settings
+      x-verification: source-and-mock
       responses:
         '200':
-          description: Purchase settings removed
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
+          description: Successful HTTP result; see schema and command-specific status fields.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MutationResponse'
+        default:
+          description: API error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      parameters:
+      - name: X-ApplianceId
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      x-cli-operations:
+      - variant: RemovePurchaseSettings
+        name: remove-purchase-settings
   /laundry/v5/laundry/courses/search/{comId}:
     get:
-      summary: Search laundry courses
-      tags:
-        - Course Management
       operationId: searchCourses
-      parameters:
-        - name: comId
-          in: path
-          required: true
-          schema:
-            type: string
+      summary: Search model courses
+      x-verification: production-read
       responses:
         '200':
-          description: Courses found
+          description: Successful HTTP result; see schema and command-specific status fields.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/CourseSearchResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
+        default:
+          description: API error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      parameters:
+      - name: comId
+        in: path
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      x-cli-operations:
+      - variant: Courses
+        name: courses
+  /laundry/v5/amazon/account/link:
+    post:
+      operationId: amazonAccountLink
+      summary: Submit authorization code for AmazonAccountLink
+      x-verification: source-and-mock
+      responses:
+        '200':
+          description: Successful HTTP result; see schema and command-specific status fields.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MutationResponse'
+        default:
+          description: API error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      parameters:
+      - name: X-ApplianceId
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AmazonLinkRequest'
+      x-cli-operations:
+      - variant: AmazonAccountLink
+        name: amazon-account-link
+  /laundry/v5/amazon/skill/enable:
+    post:
+      operationId: amazonSkillEnable
+      summary: Submit authorization code for AmazonSkillEnable
+      x-verification: source-and-mock
+      responses:
+        '200':
+          description: Successful HTTP result; see schema and command-specific status fields.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MutationResponse'
+        default:
+          description: API error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      parameters:
+      - name: X-ApplianceId
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AmazonLinkRequest'
+      x-cli-operations:
+      - variant: AmazonSkillEnable
+        name: amazon-skill-enable
 components:
   securitySchemes:
-    cookieAuth:
-      type: apiKey
-      in: cookie
-      name: session
     bearerAuth:
       type: http
       scheme: bearer
-      bearerFormat: JWT
-
-  parameters:
-    XApplianceId:
-      name: X-ApplianceId
-      in: header
-      required: true
-      schema:
-        type: string
-      description: Appliance identifier
-
-  responses:
-    Unauthorized:
-      description: Authentication required
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorResponse'
-    InternalServerError:
-      description: Internal server error
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorResponse'
-
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: atkn
+      description: Sent alongside Bearer by this client; independent necessity not verified.
   schemas:
-    ErrorResponse:
-      type: object
-      properties:
-        error:
-          type: string
-        message:
-          type: string
-        code:
-          type: string
-
-    UserLoginResponse:
-      type: object
-      properties:
-        levelup:
-          type: boolean
-        tos_agreed_version:
-          type: string
-        read_message_ids:
-          type: array
-          items:
-            type: string
-        selected_device:
-          $ref: '#/components/schemas/SelectedDevice'
-        notification_term_ids:
-          type: array
-          items:
-            type: string
-        selected_supplies:
-          $ref: '#/components/schemas/SelectedSupplies'
-        messages:
-          type: array
-          items:
-            $ref: '#/components/schemas/Message'
-
-    SelectedDevice:
-      type: object
-      properties:
-        appliance_id:
-          type: string
-        notification_term_ids:
-          type: array
-          items:
-            type: string
-
-    SelectedSupplies:
-      type: object
-      properties:
-        detergent:
-          $ref: '#/components/schemas/Supply'
-        softener:
-          $ref: '#/components/schemas/Supply'
-
-    Supply:
-      type: object
-      properties:
-        id:
-          type: string
-        name:
-          type: string
-        ecsite_id:
-          type: string
-
-    Message:
-      type: object
-      properties:
-        id:
-          type: string
-        title:
-          type: string
-        registered_date:
-          type: string
-          format: date-time
-
-    UserDeviceListResponse:
-      type: object
-      properties:
-        devices:
-          type: array
-          items:
-            $ref: '#/components/schemas/UserDevice'
-
-    UserDevice:
-      type: object
-      properties:
-        appliance_id:
-          type: string
-        product_number:
-          type: string
-        com_id:
-          type: string
-        nickname:
-          type: string
-        model_name:
-          type: string
-        model_type:
-          type: string
-          enum: ['DRUM', 'TOP']
-          description: |
-            Laundry machine types:
-            - DRUM: Drum-type washing machine
-            - TOP: Top-loading washing machine
-        registered_date:
-          type: string
-          format: date-time
-
-    DeviceStatusResponse:
-      type: object
-      properties:
-        status:
-          type: array
-          items:
-            $ref: '#/components/schemas/DeviceStatus'
-        drytime_prediction:
-          $ref: '#/components/schemas/DrytimePrediction'
-
-    DeviceStatus:
-      type: object
-      properties:
-        id:
-          type: string
-        params:
-          type: array
-          items:
-            type: object
-            properties:
-              value:
-                type: string
-
-    DrytimePrediction:
-      type: object
-      properties:
-        availability:
-          type: boolean
-        cause_code:
-          type: string
-          enum: ['I501', 'I502', 'I503', 'I504']
-          description: |
-            Drytime prediction availability cause codes:
-            - I501: Prediction not available (reason 1)
-            - I502: Prediction not available (reason 2)
-            - I503: Prediction not available (reason 3)
-            - I504: Prediction not available (reason 4)
-        cause_detail:
-          type: string
-        drytime:
-          type: integer
-          description: Predicted drying time in minutes
-        unreliability:
-          type: number
-          format: float
-          minimum: 0
-          maximum: 1
-          description: Unreliability score (0-1, where 0 is most reliable)
-        decrease_acc:
-          type: number
-          format: float
-          minimum: 0
-          maximum: 1
-          description: Accuracy decrease rate
-        standby:
-          type: boolean
-          description: Whether prediction is in standby mode
-
-    DeviceInfoResponse:
-      type: object
-      properties:
-        device_info:
-          type: array
-          items:
-            $ref: '#/components/schemas/DeviceInfo'
-
-    DeviceInfo:
-      type: object
-      properties:
-        com_id:
-          type: string
-        product_number:
-          type: string
-        model_name:
-          type: string
-        model_type:
-          type: string
-        firmware_version:
-          type: string
-
-    DeviceControlRequest:
-      type: object
-      required:
-        - commands
-      properties:
-        commands:
-          type: array
-          items:
-            $ref: '#/components/schemas/Command'
-
-    Command:
-      type: object
-      properties:
-        id:
-          type: string
-        value:
-          type: string
-
-    DeviceControlResponse:
-      type: object
-      properties:
-        result:
-          type: string
-        commands:
-          type: array
-          items:
-            $ref: '#/components/schemas/CommandResult'
-
-    CommandResult:
-      type: object
-      properties:
-        id:
-          type: string
-        result:
-          type: string
-
-    LaundryCommandRequest:
-      type: object
-      required:
-        - product_number
-        - com_id
-        - cmds
-      properties:
-        product_number:
-          type: string
-        com_id:
-          type: string
-        cmds:
-          type: array
-          items:
-            $ref: '#/components/schemas/LaundryCommand'
-
-    LaundryCommand:
-      type: object
-      properties:
-        id:
-          type: string
-        value:
-          type: string
-
-    LaundryCommandResponse:
-      type: object
-      properties:
-        cmd_infos:
-          type: array
-          items:
-            $ref: '#/components/schemas/CommandInfo'
-
-    CommandInfo:
-      type: object
-      properties:
-        com_id:
-          type: string
-        id:
-          type: string
-        params:
-          type: array
-          items:
-            $ref: '#/components/schemas/CommandParam'
-
-    CommandParam:
-      type: object
-      properties:
-        value:
-          type: string
-        wash_dry_course_code:
-          type: string
-          enum: ['01', '02', '03', '04', '05', '06']
-          description: |
-            Course type codes:
-            - 01: Washing and drying course
-            - 02: Washing course
-            - 03: Drying course
-            - 04: Care
-            - 05: Nanoe
-            - 06: Steam
-        wash_dry_course_name:
-          type: string
-        wash_dry_course_description:
-          type: string
-        wash_dry_course_purpose:
-          type: string
-        wash_dry_course_note:
-          type: string
-        wash_dry_course_capacity:
-          type: string
-        wash_dry_course_operating_time:
-          type: integer
-        cmd_icon_infos:
-          type: array
-          items:
-            $ref: '#/components/schemas/IconInfo'
-        specifiable_time:
-          type: boolean
-        app_available:
-          type: boolean
-        drytime_prediction_available:
-          type: boolean
-        related_cmd_id:
-          type: string
-        detergent_input_mode:
-          type: string
-          enum: ['1', '2', '3', '4', '5']
-          description: |
-            Input mode values:
-            - 1: Valid
-            - 2: Fixed use
-            - 3: Fixed not use
-            - 4: Disabled
-            - 5: Setting fixed
-        softener_input_mode:
-          type: string
-          enum: ['1', '2', '3', '4', '5']
-          description: |
-            Input mode values:
-            - 1: Valid
-            - 2: Fixed use
-            - 3: Fixed not use
-            - 4: Disabled
-            - 5: Setting fixed
-        neutral_detergent_input_mode:
-          type: string
-          enum: ['1', '2', '3', '4', '5']
-          description: |
-            Input mode values:
-            - 1: Valid
-            - 2: Fixed use
-            - 3: Fixed not use
-            - 4: Disabled
-            - 5: Setting fixed
-        neutral_detergent_exclusion:
-          type: boolean
-        bleach_input_mode:
-          type: string
-          enum: ['1', '2', '3', '4', '5']
-          description: |
-            Input mode values:
-            - 1: Valid
-            - 2: Fixed use
-            - 3: Fixed not use
-            - 4: Disabled
-            - 5: Setting fixed
-        stain_remover_input_mode:
-          type: string
-          enum: ['1', '2', '3', '4', '5']
-          description: |
-            Input mode values:
-            - 1: Valid
-            - 2: Fixed use
-            - 3: Fixed not use
-            - 4: Disabled
-            - 5: Setting fixed
-        agent_priority:
-          type: integer
-        opt_spec_times:
-          type: array
-          items:
-            type: integer
-        order_seq:
-          type: integer
-        extend_course_code:
-          type: string
-          enum: ['00', '01', '02']
-          default: '00'
-          description: |
-            Extended course codes:
-            - 00: Normal
-            - 01: App
-            - 02: Download
-        name_top:
-          type: string
-        name_center:
-          type: string
-        name_bottom:
-          type: string
-        type:
-          type: string
-        drytime_upward_available:
-          type: boolean
-
-    IconInfo:
-      type: object
-      properties:
-        id:
-          type: string
-        url:
-          type: string
-
-    DeviceMenuItemResponse:
-      type: object
-      properties:
-        menu_items:
-          type: array
-          items:
-            $ref: '#/components/schemas/MenuItem'
-
-    MenuItem:
-      type: object
-      properties:
-        id:
-          type: string
-        name:
-          type: string
-        icon:
-          type: string
-        order:
-          type: integer
-
-    CustomerCourseResponse:
-      type: object
-      properties:
-        courses:
-          type: array
-          items:
-            $ref: '#/components/schemas/CustomerCourse'
-
-    CustomerCourse:
-      type: object
-      properties:
-        id:
-          type: string
-          pattern: '^[0-9]{6}$'
-          description: 6-digit course ID (000000 for no course)
-        name:
-          type: string
-          maxLength: 50
-        course_code:
-          type: string
-        course_type:
-          type: string
-          enum: ['1', '2']
-          description: |
-            Course tab types:
-            - 1: Self-taught course
-            - 2: Download course
-        settings:
-          type: object
-        is_downloadable:
-          type: boolean
-          default: false
-          description: Whether this course can be downloaded (max 3 download courses)
-
-    CustomerCourseRegisterRequest:
-      type: object
-      required:
-        - name
-        - course_code
-      properties:
-        name:
-          type: string
-        course_code:
-          type: string
-        settings:
-          type: object
-
-    CustomViewResponse:
-      type: object
-      properties:
-        view_data:
-          type: object
-
-    ContentVersionsResponse:
-      type: object
-      properties:
-        versions:
-          type: array
-          items:
-            $ref: '#/components/schemas/ContentVersion'
-
-    ContentVersion:
-      type: object
-      properties:
-        version:
-          type: string
-        url:
-          type: string
-        updated_date:
-          type: string
-          format: date-time
-
-    NoticesResponse:
-      type: object
-      properties:
-        notices:
-          type: array
-          items:
-            $ref: '#/components/schemas/Notice'
-        total:
-          type: integer
-
-    Notice:
-      type: object
-      properties:
-        id:
-          type: string
-        title:
-          type: string
-        content:
-          type: string
-        date:
-          type: string
-          format: date-time
-        type:
-          type: string
-          enum: ['touch-message', 'maintenance-notice', 'pana-information', 'laundry-report', 'firmware-update', 'advertisement', '1to1']
-          description: |
-            Notice types:
-            - touch-message: Touch message
-            - maintenance-notice: Maintenance notification
-            - pana-information: Information from Panasonic
-            - laundry-report: Laundry report
-            - firmware-update: Firmware update notification
-            - advertisement: Advertisement
-            - 1to1: One-to-one message
-        sub_type:
-          type: string
-          enum: ['tank', 'dry-filter', 'drainage-filter', 'advertisement', 'server-maintenance', 'recall', 'service-end', 'update', 'course-proposal', 'tips', 'campaign', 'questionnaire', 'dlct-new-course', 'dlct-advertisement', 'dlct-important']
-          description: |
-            Notice sub-types:
-            - tank: Tank cleaning
-            - dry-filter: Drying filter
-            - drainage-filter: Drainage filter
-            - advertisement: Advertisement
-            - server-maintenance: Server maintenance
-            - recall: Product recall
-            - service-end: Service termination
-            - update: Update notification
-            - course-proposal: Course proposal
-            - tips: Usage tips
-            - campaign: Campaign
-            - questionnaire: Survey
-            - dlct-new-course: New download course
-            - dlct-advertisement: Download course advertisement
-            - dlct-important: Important download course info
-
-    NoticeResponse:
-      type: object
-      properties:
-        notice:
-          $ref: '#/components/schemas/Notice'
-
-    NoticeSettingsResponse:
-      type: object
-      properties:
-        settings:
-          type: object
-
-    NoticeSettingsRequest:
-      type: object
-      properties:
-        settings:
-          type: object
-
-    NotificationTokenRequest:
-      type: object
-      required:
-        - token
-        - os_type
-      properties:
-        token:
-          type: string
-        os_type:
-          type: string
-          enum: [ios, android]
-
-    NotificationSettingsResponse:
-      type: object
-      properties:
-        enabled:
-          type: boolean
-        types:
-          type: array
-          items:
-            type: string
-
-    NotificationSettingsRequest:
-      type: object
-      properties:
-        enabled:
-          type: boolean
-        types:
-          type: array
-          items:
-            type: string
-
-    WeatherForecastResponse:
-      type: object
-      properties:
-        forecast:
-          type: array
-          items:
-            $ref: '#/components/schemas/WeatherData'
-
-    WeatherData:
-      type: object
-      properties:
-        date:
-          type: string
-          format: date
-        weather:
-          type: string
-        temperature:
-          type: object
-          properties:
-            min:
-              type: number
-            max:
-              type: number
-        humidity:
-          type: number
-        precipitation:
-          type: number
-
-    WeatherSettingsRequest:
-      type: object
-      properties:
-        location:
-          type: object
-          properties:
-            latitude:
-              type: number
-            longitude:
-              type: number
-
-    DrytimePredictionSettingsResponse:
-      type: object
-      properties:
-        use_drytime_prediction:
-          type: boolean
-
-    ServiceSuppliesResponse:
-      type: object
-      properties:
-        supplies:
-          type: array
-          items:
-            $ref: '#/components/schemas/ServiceSupply'
-        total:
-          type: integer
-
-    ServiceSupply:
-      type: object
-      properties:
-        id:
-          type: string
-        name:
-          type: string
-        type:
-          type: string
-          enum: [detergent, softener]
-        manufacturer:
-          type: string
-        ecsite_id:
-          type: string
-        image_url:
-          type: string
-
     AdvertisementsResponse:
       type: object
       properties:
         advertisements:
           type: array
           items:
-            $ref: '#/components/schemas/Advertisement'
-
-    Advertisement:
+            type: object
+            description: Empty in production verification; item schema remains unverified.
+    AmazonLinkRequest:
+      type: object
+      properties:
+        author_code:
+          type: string
+          minLength: 1
+        appliance_id:
+          type: string
+          minLength: 1
+      required:
+      - author_code
+      - appliance_id
+    ContentVersionsResponse:
+      type: object
+      properties:
+        data_id:
+          type: string
+        versions:
+          type: array
+          items:
+            type: object
+            properties:
+              version:
+                type: string
+      description: Observed response structure; optional fields and other models may add values.
+    ControlReadCommand:
       type: object
       properties:
         id:
           type: string
-        title:
+          pattern: ^[0-9A-Fa-f]{4}$
+        params:
+          type: array
+          items:
+            type: string
+          maxItems: 0
+      required:
+      - id
+      - params
+    ControlReadEnvelope:
+      type: object
+      properties:
+        requests:
+          type: array
+          items:
+            $ref: '#/components/schemas/ControlReadRequest'
+          minItems: 1
+      required:
+      - requests
+    ControlReadRequest:
+      type: object
+      properties:
+        appliance_id:
           type: string
-        content:
+          minLength: 1
+        cmd_type:
           type: string
-        image_url:
+          enum:
+          - '03'
+        cmds:
+          type: array
+          items:
+            $ref: '#/components/schemas/ControlReadCommand'
+          minItems: 1
+        protocol:
           type: string
-        link_url:
+          enum:
+          - echonetlite
+        seq_no:
+          type: integer
+          minimum: 1
+      required:
+      - appliance_id
+      - cmd_type
+      - cmds
+      - protocol
+      - seq_no
+    ControlWriteCommand:
+      type: object
+      properties:
+        id:
           type: string
-        start_date:
+          pattern: ^[0-9A-Fa-f]{4}$
+        params:
+          type: array
+          items:
+            type: string
+            pattern: ^(?:[0-9A-Fa-f]{2})+$
+          minItems: 1
+      required:
+      - id
+      - params
+    ControlWriteEnvelope:
+      type: object
+      properties:
+        requests:
+          type: array
+          items:
+            $ref: '#/components/schemas/ControlWriteRequest'
+          minItems: 1
+      required:
+      - requests
+    ControlWriteRequest:
+      type: object
+      properties:
+        appliance_id:
           type: string
-          format: date-time
-        end_date:
+          minLength: 1
+        cmd_type:
           type: string
-          format: date-time
-
+          enum:
+          - '02'
+        cmds:
+          type: array
+          items:
+            $ref: '#/components/schemas/ControlWriteCommand'
+          minItems: 1
+        protocol:
+          type: string
+          enum:
+          - echonetlite
+        seq_no:
+          type: integer
+          minimum: 1
+      required:
+      - appliance_id
+      - cmd_type
+      - cmds
+      - protocol
+      - seq_no
+    CourseAddRequest:
+      type: object
+      properties:
+        wash_dry_course_code:
+          type: string
+          minLength: 1
+        appliance_id:
+          type: string
+          minLength: 1
+        api_type:
+          type: integer
+          enum:
+          - 1
+        view_id:
+          type: string
+          minLength: 1
+        base_course:
+          type: string
+          minLength: 1
+        courses:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              name:
+                type: string
+                minLength: 1
+              cmds:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PropertyCommand'
+            required:
+            - name
+            - cmds
+          minItems: 1
+      required:
+      - wash_dry_course_code
+      - appliance_id
+      - api_type
+      - view_id
+      - base_course
+      - courses
+    CourseDeleteRequest:
+      type: object
+      properties:
+        wash_dry_course_code:
+          type: string
+          minLength: 1
+        appliance_id:
+          type: string
+          minLength: 1
+        api_type:
+          type: integer
+          enum:
+          - 3
+        view_id:
+          type: string
+          minLength: 1
+        base_course:
+          type: string
+          minLength: 1
+        courses:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              name:
+                type: string
+                minLength: 1
+              cmds:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PropertyCommand'
+            required:
+            - id
+          minItems: 1
+      required:
+      - wash_dry_course_code
+      - appliance_id
+      - api_type
+      - view_id
+      - base_course
+      - courses
+    CourseEditRequest:
+      type: object
+      properties:
+        wash_dry_course_code:
+          type: string
+          minLength: 1
+        appliance_id:
+          type: string
+          minLength: 1
+        api_type:
+          type: integer
+          enum:
+          - 2
+        view_id:
+          type: string
+          minLength: 1
+        base_course:
+          type: string
+          minLength: 1
+        courses:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              name:
+                type: string
+                minLength: 1
+              cmds:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PropertyCommand'
+            required:
+            - id
+            - name
+            - cmds
+          minItems: 1
+      required:
+      - wash_dry_course_code
+      - appliance_id
+      - api_type
+      - view_id
+      - base_course
+      - courses
+    CourseSearchResponse:
+      type: object
+      properties:
+        search_list:
+          type: array
+          items:
+            type: object
+            properties:
+              icon_url1:
+                type: string
+              search_condition1:
+                type: string
+              search_condition2:
+                type: string
+              search_kind:
+                type: string
+              search_results:
+                anyOf:
+                - type: array
+                  items:
+                    type: object
+                    properties:
+                      command_id:
+                        type: string
+                      course_values:
+                        type: array
+                        items:
+                          type: string
+                - type: array
+                  items:
+                    type: object
+                    properties:
+                      command_id:
+                        type: string
+                      course_values:
+                        type: array
+                        items:
+                          nullable: true
+      description: Observed response structure; optional fields and other models may add values.
+    CustomViewResponse:
+      type: object
+      properties:
+        dialogs:
+          type: array
+          items:
+            type: object
+            properties:
+              cmds:
+                anyOf:
+                - type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      params:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            name:
+                              type: string
+                            value:
+                              type: string
+                - type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      name:
+                        type: string
+                      params:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            cmd:
+                              type: object
+                              properties:
+                                id:
+                                  type: string
+                                params:
+                                  type: array
+                                  items:
+                                    type: object
+                                    properties:
+                                      value:
+                                        type: string
+                            name:
+                              type: string
+                            value:
+                              type: string
+                - type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      params:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            action:
+                              type: string
+                            name:
+                              type: string
+                            value:
+                              type: string
+              id:
+                type: string
+              name:
+                type: string
+              type:
+                type: string
+              unit:
+                type: string
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              default:
+                type: object
+                properties:
+                  cmds:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        params:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              value:
+                                type: string
+              display_order:
+                anyOf:
+                - type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      pattern:
+                        type: integer
+                      text_size:
+                        type: integer
+                      unit:
+                        type: string
+                - type: array
+                  items:
+                    type: object
+                    properties:
+                      cmds:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                            params:
+                              type: array
+                              items:
+                                type: object
+                                properties:
+                                  value:
+                                    type: string
+                      id:
+                        type: string
+                      pattern:
+                        type: integer
+                      text_size:
+                        type: integer
+                      unit:
+                        type: string
+                - type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      pattern:
+                        type: integer
+                      text_size:
+                        type: integer
+              icon_name:
+                type: string
+              id:
+                type: string
+              name:
+                type: string
+              type:
+                type: string
+        states:
+          type: array
+          items:
+            type: object
+            properties:
+              controllers:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    conditions:
+                      anyOf:
+                      - type: array
+                        items:
+                          type: object
+                          properties:
+                            available:
+                              type: boolean
+                            dialog_id:
+                              type: string
+                            displayable:
+                              type: boolean
+                            editable:
+                              type: boolean
+                      - type: array
+                        items:
+                          type: object
+                          properties:
+                            available:
+                              type: boolean
+                            displayable:
+                              type: boolean
+                            editable:
+                              type: boolean
+                      - type: array
+                        items:
+                          type: object
+                          properties:
+                            available:
+                              type: boolean
+                            cmds:
+                              type: array
+                              items:
+                                type: object
+                                properties:
+                                  id:
+                                    type: string
+                                  params:
+                                    type: array
+                                    items:
+                                      type: object
+                                      properties:
+                                        value:
+                                          type: string
+                            dialog_id:
+                              type: string
+                            displayable:
+                              type: boolean
+                            editable:
+                              type: boolean
+                    item_id:
+                      type: string
+              status:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                    params:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          value:
+                            type: string
+        validations:
+          type: array
+          items:
+            type: object
+            properties:
+              cmds:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                    params:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          value:
+                            type: string
+              error_code:
+                type: string
+              error_message:
+                type: string
+      description: Observed response structure; optional fields and other models may add values.
+    CustomerCourseRegisterRequest:
+      oneOf:
+      - $ref: '#/components/schemas/CourseAddRequest'
+      - $ref: '#/components/schemas/CourseEditRequest'
+      - $ref: '#/components/schemas/CourseDeleteRequest'
+    CustomerCourseResponse:
+      type: object
+      properties:
+        courses:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              name:
+                type: string
+              modify_date:
+                type: string
+              cmds:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PropertyCommand'
+    DeviceControlRequest:
+      oneOf:
+      - $ref: '#/components/schemas/ControlReadEnvelope'
+      - $ref: '#/components/schemas/ControlWriteEnvelope'
+    DeviceControlResponse:
+      type: object
+      properties:
+        drytime_prediction:
+          nullable: true
+        results:
+          type: array
+          items:
+            type: object
+            properties:
+              appliance_id:
+                type: string
+              cmd_result:
+                type: boolean
+              cmd_type:
+                type: string
+              cmds:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                    params:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          value:
+                            type: string
+              pcpf_status_code:
+                type: string
+              seq_no:
+                type: integer
+              status_code:
+                type: string
+      description: Observed response structure; optional fields and other models may add values.
+    DeviceInfoResponse:
+      type: object
+      properties:
+        devices:
+          type: array
+          items:
+            type: object
+            properties:
+              com_id:
+                type: string
+              default_name:
+                type: string
+              downloadable_version:
+                type: object
+                properties:
+                  '02':
+                    type: string
+              icon_info:
+                type: object
+                properties:
+                  base_url:
+                    type: string
+                  icon:
+                    type: string
+              laundry_setting:
+                type: object
+                properties:
+                  cloud_reservation_supported:
+                    type: boolean
+                  course_gui_supported:
+                    type: boolean
+                  customer_course_setting_supported:
+                    type: boolean
+                  drying_supported:
+                    type: boolean
+                  drytime_prediction_supported:
+                    type: boolean
+                  drytime_schedule_upward_supported:
+                    type: boolean
+                  gui_supported:
+                    nullable: true
+                  laundry_type:
+                    type: string
+                  registrable_dl_courses_count:
+                    type: integer
+              product_number:
+                type: string
+              release_year:
+                type: integer
+              rinse_course_name:
+                type: string
+              supported_cmds:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    cmds:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                          name:
+                            type: string
+                          params:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                name:
+                                  type: string
+                                name_bottom:
+                                  type: string
+                                name_center:
+                                  type: string
+                                name_top:
+                                  type: string
+                                type:
+                                  type: string
+                                value:
+                                  type: string
+                    get:
+                      type: array
+                      items:
+                        type: string
+                    notify:
+                      type: array
+                      items:
+                        type: string
+                    protocol:
+                      type: string
+                    set:
+                      type: array
+                      items:
+                        type: string
+              supported_protocol:
+                type: string
+    DeviceMenuItemResponse:
+      type: object
+      properties:
+        shop_area:
+          type: array
+          items:
+            type: object
+            properties:
+              shop_area_id:
+                type: string
+              shop_area_name:
+                type: string
+        shop_category:
+          type: array
+          items:
+            type: object
+            properties:
+              shop_category_id:
+                type: string
+              shop_category_name:
+                type: string
+      description: Observed response structure; optional fields and other models may add values.
+    DeviceRegistrationRequest:
+      type: object
+      properties:
+        appliance_id:
+          type: string
+          minLength: 1
+        com_id:
+          type: string
+          minLength: 1
+        hashed_guid:
+          type: string
+          minLength: 1
+        nickname:
+          type: string
+          minLength: 1
+        product_code:
+          type: string
+          minLength: 1
+        purchase_info:
+          type: object
+          properties:
+            purchase_date:
+              type: string
+            shop_category_id:
+              type: string
+            shop_area_id:
+              type: string
+            shop_name:
+              type: string
+            memo:
+              type: string
+      required:
+      - appliance_id
+      - com_id
+      - hashed_guid
+      - nickname
+      - product_code
+      - purchase_info
+    DeviceRemovalRequest:
+      type: object
+      properties:
+        appliance_ids:
+          type: array
+          items:
+            type: string
+            minLength: 1
+          minItems: 1
+      required:
+      - appliance_ids
+    DeviceStatusResponse:
+      type: object
+      properties:
+        status:
+          type: array
+          items:
+            $ref: '#/components/schemas/PropertyCommand'
+        drytime_prediction:
+          type: object
+    DrytimePredictionSettingsRequest:
+      type: object
+      properties:
+        use_drytime_prediction:
+          type: boolean
+      required:
+      - use_drytime_prediction
+    DrytimePredictionSettingsResponse:
+      type: object
+      properties:
+        use_drytime_prediction:
+          type: boolean
+      description: Observed response structure; optional fields and other models may add values.
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        extra:
+          type: object
+        log_level:
+          type: string
+        error:
+          type: string
+        status:
+          type: integer
+        path:
+          type: string
+        timestamp:
+          type: string
+    LaundryCommandRequest:
+      type: object
+      properties:
+        product_number:
+          type: string
+          minLength: 1
+        com_id:
+          type: string
+          minLength: 1
+        cmds:
+          type: array
+          items:
+            $ref: '#/components/schemas/PropertyCommand'
+      required:
+      - product_number
+      - com_id
+      - cmds
+    LaundryCommandResponse:
+      type: object
+      properties:
+        cmd_infos:
+          type: array
+          items:
+            type: object
+            properties:
+              com_id:
+                type: string
+              id:
+                type: string
+              params:
+                type: array
+                items: {}
+      description: Observed response structure; optional fields and other models may add values.
+    MarkNoticeReadRequest:
+      type: object
+      properties:
+        read_state:
+          type: boolean
+          enum:
+          - true
+      required:
+      - read_state
+    MutationResponse:
+      type: object
+      additionalProperties: true
+      description: Response shape not verified against production. Do not infer appliance acceptance
+        from HTTP alone.
+    NoticeSettingsRequest:
+      type: object
+      properties:
+        term_id:
+          type: string
+          minLength: 1
+        appliance_id:
+          type: string
+          minLength: 1
+        pana_notice_setting:
+          type: boolean
+      required:
+      - term_id
+      - appliance_id
+      - pana_notice_setting
+    NoticeSettingsResponse:
+      type: object
+      properties:
+        pana_notice_setting:
+          type: boolean
+      description: Observed response structure; optional fields and other models may add values.
+    NoticesResponse:
+      type: object
+      properties:
+        has_new_arrived:
+          type: boolean
+        notices:
+          type: array
+          items:
+            type: object
+            properties:
+              appliance_id:
+                type: string
+              content:
+                type: string
+              description:
+                type: string
+              id:
+                type: string
+              payload:
+                type: object
+                properties:
+                  push_flg:
+                    type: boolean
+                  reports:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        course_value:
+                          type: string
+                        notice_comments:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              comment:
+                                type: string
+                              icon:
+                                type: string
+                              icon_name:
+                                type: string
+                        operation_duration:
+                          type: string
+                        operation_end_time:
+                          type: string
+                        sub_course_value:
+                          type: string
+                  url_link:
+                    type: string
+              read_state:
+                type: boolean
+              sub_type:
+                type: string
+              timestamp:
+                type: string
+                nullable: true
+              title:
+                type: string
+              ttl:
+                nullable: true
+              type:
+                type: string
+        pagination_info:
+          type: object
+          properties:
+            from_index:
+              type: integer
+            limit:
+              type: integer
+            total:
+              type: integer
+      description: Observed response structure; optional fields and other models may add values.
+    NotificationSettingsRequest:
+      type: object
+      properties:
+        term_id:
+          type: string
+          minLength: 1
+        appliance_id:
+          type: string
+          minLength: 1
+        all_status:
+          type: boolean
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                minLength: 1
+              status:
+                type: boolean
+              category_id:
+                type: string
+              name:
+                type: string
+            required:
+            - id
+            - status
+        pana_notice_setting:
+          type: boolean
+      required:
+      - term_id
+      - appliance_id
+      - all_status
+      - items
+      - pana_notice_setting
+    NotificationSettingsResponse:
+      type: object
+      properties:
+        all_status:
+          type: boolean
+        categories:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              name:
+                type: string
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              category_id:
+                type: string
+              display_order:
+                type: string
+              id:
+                type: string
+              name:
+                type: string
+              status:
+                type: boolean
+      description: Observed response structure; optional fields and other models may add values.
+    NotificationTokenRequest:
+      type: object
+      properties:
+        reg_id:
+          type: string
+          minLength: 1
+        type:
+          type: integer
+          enum:
+          - 1
+          - 2
+          description: 1 Android, 2 iOS
+        device_id:
+          type: string
+          minLength: 1
+      required:
+      - reg_id
+      - type
+      - device_id
+    PropertyCommand:
+      type: object
+      properties:
+        id:
+          type: string
+          pattern: ^[0-9A-Fa-f]{4}$
+        params:
+          type: array
+          items:
+            $ref: '#/components/schemas/PropertyParam'
+      required:
+      - id
+      - params
+    PropertyParam:
+      type: object
+      properties:
+        value:
+          type: string
+      required:
+      - value
+    PurchaseSettingsRequest:
+      type: object
+      properties:
+        site_id:
+          type: string
+          minLength: 1
+      required:
+      - site_id
+    ServiceSitesResponse:
+      type: object
+      properties:
+        sites:
+          type: array
+          items:
+            type: object
+            properties:
+              icon_url:
+                type: string
+              is_activate:
+                type: boolean
+              order_no:
+                type: integer
+              site_id:
+                type: string
+              site_name:
+                type: string
+              site_url:
+                type: string
+              updated_date:
+                type: string
+      description: Observed response structure; optional fields and other models may add values.
+    ServiceSuppliesResponse:
+      type: object
+      properties:
+        bleach:
+          type: array
+          items:
+            type: object
+            properties:
+              for_laundry_name:
+                type: string
+              icon_info:
+                type: object
+                properties:
+                  base_url:
+                    type: string
+                  icon:
+                    type: string
+              id:
+                type: string
+              input_amount:
+                type: integer
+              name:
+                type: string
+        detergent:
+          type: array
+          items:
+            type: object
+            properties:
+              for_laundry_name:
+                type: string
+              icon_info:
+                type: object
+                properties:
+                  base_url:
+                    type: string
+                  icon:
+                    type: string
+              id:
+                type: string
+              input_amount:
+                type: integer
+              name:
+                type: string
+              recommended_rinse_times:
+                type: integer
+        neutralDetergent:
+          type: array
+          items:
+            type: object
+            properties:
+              for_laundry_name:
+                type: string
+              icon_info:
+                type: object
+                properties:
+                  base_url:
+                    type: string
+                  icon:
+                    type: string
+              id:
+                type: string
+              input_amount:
+                type: integer
+              name:
+                type: string
+              recommended_rinse_times:
+                nullable: true
+        softener:
+          type: array
+          items:
+            type: object
+            properties:
+              for_laundry_name:
+                type: string
+              icon_info:
+                type: object
+                properties:
+                  base_url:
+                    type: string
+                  icon:
+                    type: string
+              id:
+                type: string
+              input_amount:
+                type: integer
+              name:
+                type: string
+        stainRemovers:
+          type: array
+          items:
+            type: object
+            properties:
+              for_laundry_name:
+                type: string
+              icon_info:
+                type: object
+                properties:
+                  base_url:
+                    type: string
+                  icon:
+                    type: string
+              id:
+                type: string
+              input_amount:
+                type: integer
+              name:
+                type: string
+      description: Observed response structure; optional fields and other models may add values.
+    UserDeviceListResponse:
+      type: object
+      properties:
+        devices:
+          type: array
+          items:
+            type: object
+            properties:
+              appliance_id:
+                type: string
+                minLength: 1
+              product_code:
+                type: string
+              com_id:
+                type: string
+              nickname:
+                type: string
+              hashed_guid:
+                type: string
+              serial_number:
+                type: string
+              purchase_info:
+                type: object
+              laundry_setting:
+                type: object
+              icon_info:
+                type: object
+              downloadable_version:
+                type: string
+              number_of_users:
+                type: integer
+              last_selected_date:
+                type: string
+    UserLoginRequest:
+      type: object
+      properties:
+        type:
+          type: integer
+          enum:
+          - 0
+          - 1
+      required:
+      - type
+    UserLoginResponse:
+      type: object
+      properties:
+        messages:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              registered_date:
+                type: string
+              title:
+                type: string
+              type:
+                type: string
+              url_link:
+                type: string
+        notification_term_ids:
+          type: array
+          items:
+            type: string
+        read_message_ids:
+          type: array
+          items:
+            type: string
+        selected_device:
+          type: object
+          properties:
+            appliance_id:
+              type: string
+            cloud_reservation_flg:
+              type: boolean
+        selected_supplies:
+          type: object
+          properties:
+            detergent:
+              nullable: true
+            neutral_detergent:
+              nullable: true
+            softener:
+              nullable: true
+        tos_agreed_version:
+          type: string
+      description: Observed response structure; optional fields and other models may add values.
+    UserPurchaseSettingsResponse:
+      type: object
+      properties:
+        purchase_status:
+          type: boolean
+        setting_status:
+          type: boolean
+      description: Observed response structure; optional fields and other models may add values.
+    UserUpdateRequest:
+      oneOf:
+      - type: object
+        properties:
+          setting_type:
+            type: integer
+            enum:
+            - 1
+          tos_agreed_version:
+            type: string
+            minLength: 1
+        required:
+        - setting_type
+        - tos_agreed_version
+      - type: object
+        properties:
+          setting_type:
+            type: integer
+            enum:
+            - 2
+          appliance_id:
+            type: string
+            minLength: 1
+        required:
+        - setting_type
+        - appliance_id
+      - type: object
+        properties:
+          setting_type:
+            type: integer
+            enum:
+            - 3
+          tos_agreed_version:
+            type: string
+            minLength: 1
+        required:
+        - setting_type
+        - tos_agreed_version
+      - type: object
+        properties:
+          setting_type:
+            type: integer
+            enum:
+            - 4
+          read_message_ids:
+            type: array
+            items:
+              type: string
+        required:
+        - setting_type
+        - read_message_ids
+      - type: object
+        properties:
+          setting_type:
+            type: integer
+            enum:
+            - 5
+        required:
+        - setting_type
+      - type: object
+        properties:
+          setting_type:
+            type: integer
+            enum:
+            - 6
+          term_id:
+            type: string
+            minLength: 1
+          app_sleep_setting:
+            description: Native-provided value; type not established by web source.
+        required:
+        - setting_type
+        - term_id
+        - app_sleep_setting
     VersionResponse:
       type: object
       properties:
         absolute:
           type: boolean
-        tos:
-          type: object
-          properties:
-            version:
-              type: string
-            url:
-              type: string
-        models:
-          type: object
-          properties:
-            version:
-              type: string
-            url:
-              type: string
         contents:
           type: array
           items:
             type: object
             properties:
+              message:
+                type: string
               screen_id:
-                type: string
-              version:
-                type: string
-              url:
                 type: string
               update_date:
                 type: string
-              message:
+              url:
+                type: string
+              version:
                 type: string
         external_sites:
           type: array
@@ -1551,9 +2620,9 @@ components:
             properties:
               id:
                 type: string
-              version:
-                type: string
               url:
+                type: string
+              version:
                 type: string
         fwup_contents:
           type: array
@@ -1562,58 +2631,104 @@ components:
             properties:
               id:
                 type: string
-              version:
-                type: string
               url:
                 type: string
-
-    ServiceSitesResponse:
+              version:
+                type: string
+        models:
+          type: object
+          properties:
+            url:
+              type: string
+            version:
+              type: string
+        tos:
+          type: object
+          properties:
+            url:
+              type: string
+            version:
+              type: string
+      description: Observed response structure; optional fields and other models may add values.
+    WeatherForecastResponse:
       type: object
       properties:
-        sites:
-          type: array
-          items:
-            $ref: '#/components/schemas/ServiceSite'
-
-    ServiceSite:
-      type: object
-      properties:
-        site_id:
-          type: string
-        site_url:
-          type: string
-        icon_url:
-          type: string
-        site_name:
-          type: string
-        is_activate:
-          type: boolean
-        order_no:
-          type: integer
-
-    UserPurchaseSettingsResponse:
-      type: object
-      properties:
-        site_id:
-          type: string
-        product_code:
-          type: string
-        setting_status:
-          type: string
-        purchase_status:
-          type: string
-
-    CourseSearchResponse:
-      type: object
-      properties:
-        courses:
+        forecasts:
           type: array
           items:
             type: object
             properties:
-              course_id:
+              day_of_week:
                 type: string
-              course_name:
+              exp_time_utc:
+                type: integer
+              icon_code:
+                type: integer
+              precip_chance:
+                type: integer
+              valid_time_local:
                 type: string
-              course_type:
-                type: string 
+              valid_time_utc:
+                type: integer
+        metadata:
+          type: object
+          properties:
+            forecast_expire_date:
+              type: string
+            forecast_updated_date:
+              type: string
+            locale_id:
+              type: string
+            region_id:
+              type: string
+            sub_region_1:
+              type: object
+              additionalProperties:
+                type: string
+              nullable: true
+            sub_region_2:
+              type: object
+              additionalProperties:
+                type: string
+              nullable: true
+            sub_region_3:
+              type: object
+              additionalProperties:
+                type: string
+              nullable: true
+        service_end:
+          type: boolean
+      description: Observed response structure; optional fields and other models may add values.
+    WeatherSettingsRequest:
+      type: object
+      properties:
+        locale_id:
+          type: string
+          minLength: 1
+        region_id:
+          type: string
+          minLength: 1
+        sub_region_1:
+          type: object
+          minProperties: 1
+          maxProperties: 1
+          additionalProperties:
+            type: string
+        sub_region_2:
+          type: object
+          minProperties: 1
+          maxProperties: 1
+          additionalProperties:
+            type: string
+        sub_region_3:
+          type: object
+          minProperties: 1
+          maxProperties: 1
+          additionalProperties:
+            type: string
+          nullable: true
+      required:
+      - locale_id
+      - region_id
+      - sub_region_1
+      - sub_region_2

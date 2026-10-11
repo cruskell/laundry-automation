@@ -118,11 +118,33 @@ cargo fmt --check
 
 ## API reference
 
-`spec/openapi.yaml` is a third-party reference from
-[s-zaizen/panasonic-smartlaundry-api](https://github.com/s-zaizen/panasonic-smartlaundry-api),
-with its license in `spec/LICENSE`. It is not an official Panasonic specification.
-Observed differences include the `atkn` cookie, timestamp headers, `product_code`
-in device lists, and no trailing slash on the status endpoint.
+`spec/openapi.yaml` is a community-maintained OpenAPI 3.0.3 contract, updated
+against the official FY26_2nd app and verified read responses. The original
+[s-zaizen/panasonic-smartlaundry-api](https://github.com/s-zaizen/panasonic-smartlaundry-api)
+license remains in `spec/LICENSE`. This is not an official Panasonic specification;
+write contracts are source/mock verified, and unknown response fields are retained.
+
+The 38 `api` operations use the generated Rust client in `src/generated_api.rs`.
+Routes, methods, CLI names, required parameters, header mappings, built-in bodies,
+and request schemas come from OpenAPI. JSON responses remain `serde_json::Value`
+to preserve model-dependent fields. Appliance safety checks and notice pagination
+remain handwritten. The existing `status`/`start` analysis and control helpers
+retain their dedicated implementations.
+
+After editing the schema, regenerate and validate the client (Python 3 and Rust
+1.86 with rustfmt required):
+
+```sh
+python3 -m pip install -r scripts/requirements-openapi.txt
+python3 scripts/check-openapi.py
+python3 scripts/generate-api-client.py
+python3 scripts/generate-api-client.py --check
+# Optional: validate saved private responses without exposing values.
+python3 scripts/check-openapi.py --responses .local/api
+```
+
+Generated files are committed, so normal Cargo builds do not require Python.
+CI checks the specification, generated-file freshness, formatting, tests, and Clippy.
 
 The HTTP client identifies itself with `laundry-automation/0.1.0`. Omitting the
 User-Agent initially produced HTTP 403; adding it resolved the request.

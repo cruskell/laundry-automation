@@ -1,7 +1,7 @@
 //! Additional API operations from the bundled third-party reference.
 //! Selected read operations are verified against production; see API_ENDPOINTS.md.
 use anyhow::{Context, Result, ensure};
-use clap::{Args, ValueEnum};
+use clap::Args;
 use reqwest::{Method, blocking::Client};
 use serde_json::{Value, json};
 use std::{collections::BTreeMap, path::PathBuf};
@@ -11,48 +11,7 @@ use crate::{api, storage};
 
 const BASE: &str = "https://app.wad.apws.panasonic.com/laundry/v5/";
 
-#[derive(Clone, Copy, Debug, ValueEnum)]
-pub enum Operation {
-    Login,
-    UserInfo,
-    MarkNoticeRead,
-    AmazonAccountLink,
-    AmazonSkillEnable,
-    ControlRead,
-    ControlWrite,
-    /// Fetch registered notification terminal IDs through the app user-info request.
-    NotificationTerminals,
-    UpdateUser,
-    RegisterDevice,
-    RemoveDevice,
-    MenuItems,
-    CustomerCourses,
-    RegisterCourse,
-    EditCourse,
-    DeleteCourse,
-    CustomView,
-    ContentVersions,
-    Notices,
-    Notice,
-    NoticeSettings,
-    UpdateNoticeSettings,
-    RegisterNotificationToken,
-    NotificationSettings,
-    UpdateNotificationSettings,
-    WeatherForecast,
-    UpdateWeatherSettings,
-    PredictionSettings,
-    UpdatePredictionSettings,
-    Supplies,
-    Advertisements,
-    Versions,
-    ServiceSites,
-    PurchaseSettings,
-    UpdatePurchaseSettings,
-    RemovePurchaseSettings,
-    Courses,
-    CommandDetails,
-}
+pub use crate::generated_api::Operation;
 
 #[derive(Args)]
 pub struct Options {
@@ -68,189 +27,6 @@ pub struct Options {
     /// Validate and save the request without authentication or network access.
     #[arg(long)]
     dry_run: bool,
-}
-
-struct Endpoint {
-    method: Method,
-    path: &'static str,
-    appliance: bool,
-    required: &'static [&'static str],
-    optional: &'static [&'static str],
-    body: bool,
-}
-
-impl Operation {
-    fn endpoint(self) -> Endpoint {
-        use Operation::*;
-        let (method, path, appliance, required, optional, body): (_, _, _, &[&str], &[&str], _) =
-            match self {
-                Login => (Method::POST, "users", false, &[], &[], true),
-                UserInfo => (Method::POST, "users", false, &[], &[], false),
-                MarkNoticeRead => (Method::POST, "notices/{id}", true, &["id"], &[], false),
-                AmazonAccountLink => (Method::POST, "amazon/account/link", true, &[], &[], true),
-                AmazonSkillEnable => (Method::POST, "amazon/skill/enable", true, &[], &[], true),
-                ControlRead | ControlWrite => {
-                    (Method::POST, "device/control", true, &[], &[], true)
-                }
-                NotificationTerminals => (Method::POST, "users", false, &[], &[], false),
-                UpdateUser => (Method::POST, "user", false, &[], &[], true),
-                RegisterDevice => (Method::POST, "user/devices", false, &[], &[], true),
-                RemoveDevice => (Method::POST, "user/devices/remove", true, &[], &[], false),
-                MenuItems => (Method::GET, "device/menuitem", true, &[], &[], false),
-                CustomerCourses => (
-                    Method::GET,
-                    "customer/course",
-                    true,
-                    &["wash_dry_course_code", "base_course"],
-                    &[],
-                    false,
-                ),
-                RegisterCourse | EditCourse | DeleteCourse => {
-                    (Method::POST, "customer/course", true, &[], &[], true)
-                }
-                CustomView => (
-                    Method::GET,
-                    "custom/view",
-                    false,
-                    &[
-                        "wash_dry_course_code",
-                        "com_id",
-                        "view_id",
-                        "command_param_value",
-                    ],
-                    &[],
-                    false,
-                ),
-                ContentVersions => (
-                    Method::GET,
-                    "contents/versions",
-                    false,
-                    &["com_id", "data_id"],
-                    &[],
-                    false,
-                ),
-                Notices => (
-                    Method::GET,
-                    "notices",
-                    false,
-                    &[],
-                    &["language", "limit", "offset", "from_index"],
-                    false,
-                ),
-                Notice => (Method::GET, "notices", true, &["id"], &[], false),
-                NoticeSettings => (
-                    Method::GET,
-                    "user/notices/setting",
-                    true,
-                    &["term_id"],
-                    &[],
-                    false,
-                ),
-                UpdateNoticeSettings => {
-                    (Method::POST, "user/notices/setting", true, &[], &[], true)
-                }
-                RegisterNotificationToken => {
-                    (Method::POST, "user/notifications", false, &[], &[], true)
-                }
-                NotificationSettings => (
-                    Method::GET,
-                    "user/notifications/settings",
-                    true,
-                    &["term_id"],
-                    &[],
-                    false,
-                ),
-                UpdateNotificationSettings => (
-                    Method::POST,
-                    "user/notifications/settings",
-                    true,
-                    &[],
-                    &[],
-                    true,
-                ),
-                WeatherForecast => (Method::GET, "weatherinfo/forecast", true, &[], &[], false),
-                UpdateWeatherSettings => {
-                    (Method::POST, "weatherinfo/settings", true, &[], &[], true)
-                }
-                PredictionSettings => (
-                    Method::GET,
-                    "user/drytime_prediction/settings",
-                    true,
-                    &[],
-                    &[],
-                    false,
-                ),
-                UpdatePredictionSettings => (
-                    Method::POST,
-                    "user/drytime_prediction/settings",
-                    true,
-                    &[],
-                    &[],
-                    true,
-                ),
-                Supplies => (
-                    Method::GET,
-                    "service/supplies",
-                    false,
-                    &[],
-                    &["supplies_type", "limit", "offset"],
-                    false,
-                ),
-                Advertisements => (
-                    Method::GET,
-                    "advertisements",
-                    false,
-                    &["product_number"],
-                    &[],
-                    false,
-                ),
-                Versions => (
-                    Method::GET,
-                    "versions/{osType}/{appVersion}",
-                    false,
-                    &["osType", "appVersion"],
-                    &[],
-                    false,
-                ),
-                ServiceSites => (Method::GET, "service/sites", false, &[], &[], false),
-                PurchaseSettings => (Method::GET, "user/purchase/settings", true, &[], &[], false),
-                UpdatePurchaseSettings => {
-                    (Method::POST, "user/purchase/settings", true, &[], &[], true)
-                }
-                RemovePurchaseSettings => (
-                    Method::POST,
-                    "user/purchase/settings/remove",
-                    true,
-                    &[],
-                    &[],
-                    false,
-                ),
-                Courses => (
-                    Method::GET,
-                    "laundry/courses/search/{comId}",
-                    false,
-                    &["comId"],
-                    &[],
-                    false,
-                ),
-                CommandDetails => (Method::POST, "laundry/command", false, &[], &[], true),
-            };
-        Endpoint {
-            method,
-            path,
-            appliance,
-            required,
-            optional,
-            body,
-        }
-    }
-
-    fn name(self) -> String {
-        self.to_possible_value()
-            .expect("visible operation")
-            .get_name()
-            .to_owned()
-    }
 }
 
 struct Prepared {
@@ -323,17 +99,8 @@ fn prepare(options: &Options, appliance: Option<&str>, base: &str) -> Result<Pre
     if let Some(body) = &body {
         validate_body(options.operation, body)?;
     }
-    if matches!(
-        options.operation,
-        Operation::NotificationTerminals | Operation::UserInfo
-    ) {
-        body = Some(json!({"type":0}));
-    }
-    if matches!(options.operation, Operation::RemoveDevice) {
-        body = Some(json!({"appliance_ids":[appliance.unwrap()]}));
-    }
-    if matches!(options.operation, Operation::MarkNoticeRead) {
-        body = Some(json!({"read_state":true}));
+    if let Some(generated) = options.operation.generated_body(appliance) {
+        body = Some(generated);
     }
     if let Some(body) = &body {
         if let Some(id) = body.get("appliance_id") {
@@ -355,22 +122,10 @@ fn prepare(options: &Options, appliance: Option<&str>, base: &str) -> Result<Pre
         }
     }
     let mut headers = BTreeMap::new();
-    for (param, header) in [
-        ("term_id", "X-TermId"),
-        ("product_number", "X-Product-Number"),
-    ] {
-        let is_header = (param == "term_id"
-            && matches!(
-                options.operation,
-                Operation::NoticeSettings | Operation::NotificationSettings
-            ))
-            || (param == "product_number"
-                && matches!(options.operation, Operation::Advertisements));
-        if is_header {
-            let value = params.remove(param).context("Missing header parameter")?;
-            reqwest::header::HeaderValue::from_str(value).context("Invalid header parameter")?;
-            headers.insert(header.to_owned(), value.to_owned());
-        }
+    for &(param, header) in endpoint.headers {
+        let value = params.remove(param).context("Missing header parameter")?;
+        reqwest::header::HeaderValue::from_str(value).context("Invalid header parameter")?;
+        headers.insert(header.to_owned(), value.to_owned());
     }
     let notice_id = if matches!(options.operation, Operation::Notice) {
         Some(params.remove("id").context("Missing notice ID")?.to_owned())
@@ -403,22 +158,6 @@ fn prepare(options: &Options, appliance: Option<&str>, base: &str) -> Result<Pre
         headers,
         notice_id,
     })
-}
-
-fn required_fields(body: &Value, fields: &[(&str, &str)]) -> Result<()> {
-    for (key, kind) in fields {
-        let value = &body[*key];
-        let valid = match *kind {
-            "string" => value.as_str().is_some_and(|s| !s.trim().is_empty()),
-            "boolean" => value.is_boolean(),
-            "integer" => value.is_u64(),
-            "object" => value.is_object(),
-            "array" => value.is_array(),
-            _ => false,
-        };
-        ensure!(valid, "Body requires {key} of type {kind}");
-    }
-    Ok(())
 }
 
 fn validate_commands(cmds: &Value, writing: bool) -> Result<()> {
@@ -459,194 +198,24 @@ fn validate_commands(cmds: &Value, writing: bool) -> Result<()> {
 }
 
 fn validate_body(operation: Operation, body: &Value) -> Result<()> {
-    use Operation::*;
+    operation.validate_request(body)?;
     ensure!(
         body.as_object().is_some_and(|v| !v.is_empty()),
         "Body must be a nonempty JSON object"
     );
-    let required: &[(&str, &str)] = match operation {
-        Login => &[("type", "integer")],
-        UpdateUser => &[("setting_type", "integer")],
-        RegisterDevice => &[
-            ("appliance_id", "string"),
-            ("com_id", "string"),
-            ("hashed_guid", "string"),
-            ("nickname", "string"),
-            ("product_code", "string"),
-            ("purchase_info", "object"),
-        ],
-        RegisterCourse | EditCourse | DeleteCourse => &[
-            ("wash_dry_course_code", "string"),
-            ("appliance_id", "string"),
-            ("api_type", "integer"),
-            ("view_id", "string"),
-            ("base_course", "string"),
-            ("courses", "array"),
-        ],
-        UpdateNoticeSettings => &[
-            ("term_id", "string"),
-            ("appliance_id", "string"),
-            ("pana_notice_setting", "boolean"),
-        ],
-        RegisterNotificationToken => &[
-            ("reg_id", "string"),
-            ("type", "integer"),
-            ("device_id", "string"),
-        ],
-        UpdateNotificationSettings => &[
-            ("term_id", "string"),
-            ("appliance_id", "string"),
-            ("all_status", "boolean"),
-            ("items", "array"),
-            ("pana_notice_setting", "boolean"),
-        ],
-        UpdateWeatherSettings => &[
-            ("locale_id", "string"),
-            ("region_id", "string"),
-            ("sub_region_1", "object"),
-            ("sub_region_2", "object"),
-        ],
-        UpdatePredictionSettings => &[("use_drytime_prediction", "boolean")],
-        UpdatePurchaseSettings => &[("site_id", "string")],
-        AmazonAccountLink | AmazonSkillEnable => {
-            &[("author_code", "string"), ("appliance_id", "string")]
-        }
-        ControlRead | ControlWrite => &[("requests", "array")],
-        CommandDetails => &[
-            ("product_number", "string"),
-            ("com_id", "string"),
-            ("cmds", "array"),
-        ],
-        _ => &[],
-    };
-    required_fields(body, required)?;
-    match operation {
-        Login => ensure!(
-            matches!(body["type"].as_u64(), Some(0 | 1)),
-            "Login type must be 0 (user info) or 1 (login)"
-        ),
-        UpdateUser => match body["setting_type"].as_u64().unwrap() {
-            1 | 3 => required_fields(body, &[("tos_agreed_version", "string")])?,
-            2 => required_fields(body, &[("appliance_id", "string")])?,
-            4 => {
-                required_fields(body, &[("read_message_ids", "array")])?;
-                ensure!(
-                    body["read_message_ids"]
-                        .as_array()
-                        .unwrap()
-                        .iter()
-                        .all(Value::is_string),
-                    "read_message_ids must contain strings"
-                );
-            }
-            5 => {}
-            6 => {
-                required_fields(body, &[("term_id", "string")])?;
-                ensure!(
-                    body.get("app_sleep_setting").is_some(),
-                    "app_sleep_setting is required"
-                );
-            }
-            _ => anyhow::bail!("setting_type must be 1..6"),
-        },
-        RegisterCourse | EditCourse | DeleteCourse => {
-            let kind = match operation {
-                RegisterCourse => 1,
-                EditCourse => 2,
-                _ => 3,
-            };
-            ensure!(
-                body["api_type"] == kind,
-                "This operation requires api_type={kind}"
-            );
-            let courses = body["courses"].as_array().unwrap();
-            ensure!(!courses.is_empty(), "courses must not be empty");
-            for course in courses {
-                ensure!(course.is_object(), "Course must be an object");
-                if kind != 1 {
-                    required_fields(course, &[("id", "string")])?;
-                }
-                if kind != 3 {
-                    required_fields(course, &[("name", "string"), ("cmds", "array")])?;
-                    ensure!(
-                        course["cmds"].as_array().unwrap().iter().all(|c| c["id"]
-                            .as_str()
-                            .is_some_and(
-                                |s| s.len() == 4 && s.bytes().all(|b| b.is_ascii_hexdigit())
-                            )
-                            && c["params"].as_array().is_some_and(
-                                |a| !a.is_empty() && a.iter().all(|p| p["value"].is_string())
-                            )),
-                        "Course cmds require hex id and params with value strings"
-                    );
-                }
-            }
-        }
-        RegisterNotificationToken => ensure!(
-            matches!(body["type"].as_u64(), Some(1 | 2)),
-            "Notification type must be 1 (Android) or 2 (iOS)"
-        ),
-        UpdateNotificationSettings => {
-            for item in body["items"].as_array().unwrap() {
-                required_fields(item, &[("id", "string"), ("status", "boolean")])?;
-            }
-        }
-        UpdateWeatherSettings => {
-            for key in ["sub_region_1", "sub_region_2"] {
-                ensure!(
-                    body[key].as_object().unwrap().len() == 1
-                        && body[key]
-                            .as_object()
-                            .unwrap()
-                            .values()
-                            .all(Value::is_string),
-                    "{key} must map one region code to its name"
-                );
-            }
-        }
-        ControlRead | ControlWrite => {
-            let requests = body["requests"].as_array().unwrap();
-            ensure!(
-                requests.len() == 1,
-                "Control supports exactly one appliance request"
-            );
-            let r = &requests[0];
-            required_fields(
-                r,
-                &[
-                    ("appliance_id", "string"),
-                    ("cmd_type", "string"),
-                    ("protocol", "string"),
-                    ("seq_no", "integer"),
-                    ("cmds", "array"),
-                ],
-            )?;
-            let kind = if matches!(operation, ControlRead) {
-                "03"
-            } else {
-                "02"
-            };
-            ensure!(
-                r["cmd_type"] == kind
-                    && r["protocol"] == "echonetlite"
-                    && r["seq_no"].as_u64().unwrap() > 0,
-                "Invalid control type, protocol, or sequence"
-            );
-            validate_commands(&r["cmds"], matches!(operation, ControlWrite))?;
-        }
-        CommandDetails => {
-            ensure!(
-                body["cmds"]
-                    .as_array()
-                    .unwrap()
-                    .iter()
-                    .all(|cmd| cmd["id"].as_str().is_some_and(
-                        |id| id.len() == 4 && id.bytes().all(|b| b.is_ascii_hexdigit())
-                    ) && cmd["params"].is_array()),
-                "cmds require hex id and params-array encoding"
-            );
-        }
-        _ => {}
+    // CLI safety policy is stricter than the server's multi-appliance contract.
+    if matches!(operation, Operation::ControlRead | Operation::ControlWrite) {
+        let requests = body["requests"]
+            .as_array()
+            .context("Missing control requests")?;
+        ensure!(
+            requests.len() == 1,
+            "Control supports exactly one appliance request"
+        );
+        validate_commands(
+            &requests[0]["cmds"],
+            matches!(operation, Operation::ControlWrite),
+        )?;
     }
     Ok(())
 }
@@ -759,38 +328,15 @@ fn transmit_once(
     token: Option<&str>,
     appliance: Option<&str>,
 ) -> Result<(u16, Value)> {
-    let timestamp = chrono::Utc::now()
-        .with_timezone(&chrono::FixedOffset::east_opt(9 * 3600).unwrap())
-        .format("%Y%m%d%H%M%S%z")
-        .to_string();
-    let mut request = client
-        .request(prepared.method.clone(), prepared.url.clone())
-        .header("Accept", "application/json")
-        .header("Content-Language", "ja_JP")
-        .header("X-Timestamp", timestamp);
-    if let Some(token) = token {
-        request = request
-            .bearer_auth(token)
-            .header("Cookie", format!("atkn={token}"));
-    }
-    if let Some(id) = appliance {
-        request = request.header("X-ApplianceId", id);
-    }
-    for (name, value) in &prepared.headers {
-        request = request.header(name, value);
-    }
-    if let Some(body) = &prepared.body {
-        request = request.json(body);
-    }
-    let response = request.send()?;
-    let code = response.status().as_u16();
-    let text = response.text()?;
-    let data = if text.trim().is_empty() {
-        Value::Null
-    } else {
-        serde_json::from_str(&text).unwrap_or_else(|_| json!({"non_json_response":text}))
-    };
-    Ok((code, data))
+    crate::generated_api::send(
+        client,
+        prepared.method.clone(),
+        prepared.url.clone(),
+        prepared.body.as_ref(),
+        &prepared.headers,
+        token,
+        appliance,
+    )
 }
 
 // The app's /notices/{id} POST marks a notice read. Fetch details through

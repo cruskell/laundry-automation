@@ -1,0 +1,2 @@
+PyYAML==6.0.3
+openapi-spec-validator==0.9.0

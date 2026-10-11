@@ -1,0 +1,2336 @@
+{
+  "AdvertisementsResponse": {
+    "type": "object",
+    "properties": {
+      "advertisements": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "description": "Empty in production verification; item schema remains unverified."
+        }
+      }
+    }
+  },
+  "AmazonLinkRequest": {
+    "type": "object",
+    "properties": {
+      "author_code": {
+        "type": "string",
+        "minLength": 1
+      },
+      "appliance_id": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "required": [
+      "author_code",
+      "appliance_id"
+    ]
+  },
+  "ContentVersionsResponse": {
+    "type": "object",
+    "properties": {
+      "data_id": {
+        "type": "string"
+      },
+      "versions": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "version": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "description": "Observed response structure; optional fields and other models may add values."
+  },
+  "ControlReadCommand": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "type": "string",
+        "pattern": "^[0-9A-Fa-f]{4}$"
+      },
+      "params": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "maxItems": 0
+      }
+    },
+    "required": [
+      "id",
+      "params"
+    ]
+  },
+  "ControlReadEnvelope": {
+    "type": "object",
+    "properties": {
+      "requests": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/ControlReadRequest"
+        },
+        "minItems": 1
+      }
+    },
+    "required": [
+      "requests"
+    ]
+  },
+  "ControlReadRequest": {
+    "type": "object",
+    "properties": {
+      "appliance_id": {
+        "type": "string",
+        "minLength": 1
+      },
+      "cmd_type": {
+        "type": "string",
+        "enum": [
+          "03"
+        ]
+      },
+      "cmds": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/ControlReadCommand"
+        },
+        "minItems": 1
+      },
+      "protocol": {
+        "type": "string",
+        "enum": [
+          "echonetlite"
+        ]
+      },
+      "seq_no": {
+        "type": "integer",
+        "minimum": 1
+      }
+    },
+    "required": [
+      "appliance_id",
+      "cmd_type",
+      "cmds",
+      "protocol",
+      "seq_no"
+    ]
+  },
+  "ControlWriteCommand": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "type": "string",
+        "pattern": "^[0-9A-Fa-f]{4}$"
+      },
+      "params": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "pattern": "^(?:[0-9A-Fa-f]{2})+$"
+        },
+        "minItems": 1
+      }
+    },
+    "required": [
+      "id",
+      "params"
+    ]
+  },
+  "ControlWriteEnvelope": {
+    "type": "object",
+    "properties": {
+      "requests": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/ControlWriteRequest"
+        },
+        "minItems": 1
+      }
+    },
+    "required": [
+      "requests"
+    ]
+  },
+  "ControlWriteRequest": {
+    "type": "object",
+    "properties": {
+      "appliance_id": {
+        "type": "string",
+        "minLength": 1
+      },
+      "cmd_type": {
+        "type": "string",
+        "enum": [
+          "02"
+        ]
+      },
+      "cmds": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/ControlWriteCommand"
+        },
+        "minItems": 1
+      },
+      "protocol": {
+        "type": "string",
+        "enum": [
+          "echonetlite"
+        ]
+      },
+      "seq_no": {
+        "type": "integer",
+        "minimum": 1
+      }
+    },
+    "required": [
+      "appliance_id",
+      "cmd_type",
+      "cmds",
+      "protocol",
+      "seq_no"
+    ]
+  },
+  "CourseAddRequest": {
+    "type": "object",
+    "properties": {
+      "wash_dry_course_code": {
+        "type": "string",
+        "minLength": 1
+      },
+      "appliance_id": {
+        "type": "string",
+        "minLength": 1
+      },
+      "api_type": {
+        "type": "integer",
+        "enum": [
+          1
+        ]
+      },
+      "view_id": {
+        "type": "string",
+        "minLength": 1
+      },
+      "base_course": {
+        "type": "string",
+        "minLength": 1
+      },
+      "courses": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string",
+              "minLength": 1
+            },
+            "cmds": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/PropertyCommand"
+              }
+            }
+          },
+          "required": [
+            "name",
+            "cmds"
+          ]
+        },
+        "minItems": 1
+      }
+    },
+    "required": [
+      "wash_dry_course_code",
+      "appliance_id",
+      "api_type",
+      "view_id",
+      "base_course",
+      "courses"
+    ]
+  },
+  "CourseDeleteRequest": {
+    "type": "object",
+    "properties": {
+      "wash_dry_course_code": {
+        "type": "string",
+        "minLength": 1
+      },
+      "appliance_id": {
+        "type": "string",
+        "minLength": 1
+      },
+      "api_type": {
+        "type": "integer",
+        "enum": [
+          3
+        ]
+      },
+      "view_id": {
+        "type": "string",
+        "minLength": 1
+      },
+      "base_course": {
+        "type": "string",
+        "minLength": 1
+      },
+      "courses": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string",
+              "minLength": 1
+            },
+            "cmds": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/PropertyCommand"
+              }
+            }
+          },
+          "required": [
+            "id"
+          ]
+        },
+        "minItems": 1
+      }
+    },
+    "required": [
+      "wash_dry_course_code",
+      "appliance_id",
+      "api_type",
+      "view_id",
+      "base_course",
+      "courses"
+    ]
+  },
+  "CourseEditRequest": {
+    "type": "object",
+    "properties": {
+      "wash_dry_course_code": {
+        "type": "string",
+        "minLength": 1
+      },
+      "appliance_id": {
+        "type": "string",
+        "minLength": 1
+      },
+      "api_type": {
+        "type": "integer",
+        "enum": [
+          2
+        ]
+      },
+      "view_id": {
+        "type": "string",
+        "minLength": 1
+      },
+      "base_course": {
+        "type": "string",
+        "minLength": 1
+      },
+      "courses": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string",
+              "minLength": 1
+            },
+            "cmds": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/PropertyCommand"
+              }
+            }
+          },
+          "required": [
+            "id",
+            "name",
+            "cmds"
+          ]
+        },
+        "minItems": 1
+      }
+    },
+    "required": [
+      "wash_dry_course_code",
+      "appliance_id",
+      "api_type",
+      "view_id",
+      "base_course",
+      "courses"
+    ]
+  },
+  "CourseSearchResponse": {
+    "type": "object",
+    "properties": {
+      "search_list": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "icon_url1": {
+              "type": "string"
+            },
+            "search_condition1": {
+              "type": "string"
+            },
+            "search_condition2": {
+              "type": "string"
+            },
+            "search_kind": {
+              "type": "string"
+            },
+            "search_results": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "command_id": {
+                        "type": "string"
+                      },
+                      "course_values": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "command_id": {
+                        "type": "string"
+                      },
+                      "course_values": {
+                        "type": "array",
+                        "items": {
+                          "nullable": true
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "description": "Observed response structure; optional fields and other models may add values."
+  },
+  "CustomViewResponse": {
+    "type": "object",
+    "properties": {
+      "dialogs": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "cmds": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "params": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "name": {
+                              "type": "string"
+                            },
+                            "value": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "params": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "cmd": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "params": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "value": {
+                                        "type": "string"
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            },
+                            "name": {
+                              "type": "string"
+                            },
+                            "value": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "params": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "action": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            },
+                            "value": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            },
+            "id": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string"
+            },
+            "unit": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "default": {
+              "type": "object",
+              "properties": {
+                "cmds": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "params": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "value": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "display_order": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "pattern": {
+                        "type": "integer"
+                      },
+                      "text_size": {
+                        "type": "integer"
+                      },
+                      "unit": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "cmds": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "params": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "value": {
+                                    "type": "string"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      "id": {
+                        "type": "string"
+                      },
+                      "pattern": {
+                        "type": "integer"
+                      },
+                      "text_size": {
+                        "type": "integer"
+                      },
+                      "unit": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "pattern": {
+                        "type": "integer"
+                      },
+                      "text_size": {
+                        "type": "integer"
+                      }
+                    }
+                  }
+                }
+              ]
+            },
+            "icon_name": {
+              "type": "string"
+            },
+            "id": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "states": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "controllers": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "conditions": {
+                    "anyOf": [
+                      {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "available": {
+                              "type": "boolean"
+                            },
+                            "dialog_id": {
+                              "type": "string"
+                            },
+                            "displayable": {
+                              "type": "boolean"
+                            },
+                            "editable": {
+                              "type": "boolean"
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "available": {
+                              "type": "boolean"
+                            },
+                            "displayable": {
+                              "type": "boolean"
+                            },
+                            "editable": {
+                              "type": "boolean"
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "available": {
+                              "type": "boolean"
+                            },
+                            "cmds": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string"
+                                  },
+                                  "params": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "value": {
+                                          "type": "string"
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            },
+                            "dialog_id": {
+                              "type": "string"
+                            },
+                            "displayable": {
+                              "type": "boolean"
+                            },
+                            "editable": {
+                              "type": "boolean"
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  "item_id": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "status": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "params": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "value": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "validations": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "cmds": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "params": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "value": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "error_code": {
+              "type": "string"
+            },
+            "error_message": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "description": "Observed response structure; optional fields and other models may add values."
+  },
+  "CustomerCourseRegisterRequest": {
+    "oneOf": [
+      {
+        "$ref": "#/components/schemas/CourseAddRequest"
+      },
+      {
+        "$ref": "#/components/schemas/CourseEditRequest"
+      },
+      {
+        "$ref": "#/components/schemas/CourseDeleteRequest"
+      }
+    ]
+  },
+  "CustomerCourseResponse": {
+    "type": "object",
+    "properties": {
+      "courses": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "modify_date": {
+              "type": "string"
+            },
+            "cmds": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/PropertyCommand"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "DeviceControlRequest": {
+    "oneOf": [
+      {
+        "$ref": "#/components/schemas/ControlReadEnvelope"
+      },
+      {
+        "$ref": "#/components/schemas/ControlWriteEnvelope"
+      }
+    ]
+  },
+  "DeviceControlResponse": {
+    "type": "object",
+    "properties": {
+      "drytime_prediction": {
+        "nullable": true
+      },
+      "results": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "appliance_id": {
+              "type": "string"
+            },
+            "cmd_result": {
+              "type": "boolean"
+            },
+            "cmd_type": {
+              "type": "string"
+            },
+            "cmds": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "params": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "value": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "pcpf_status_code": {
+              "type": "string"
+            },
+            "seq_no": {
+              "type": "integer"
+            },
+            "status_code": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "description": "Observed response structure; optional fields and other models may add values."
+  },
+  "DeviceInfoResponse": {
+    "type": "object",
+    "properties": {
+      "devices": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "com_id": {
+              "type": "string"
+            },
+            "default_name": {
+              "type": "string"
+            },
+            "downloadable_version": {
+              "type": "object",
+              "properties": {
+                "02": {
+                  "type": "string"
+                }
+              }
+            },
+            "icon_info": {
+              "type": "object",
+              "properties": {
+                "base_url": {
+                  "type": "string"
+                },
+                "icon": {
+                  "type": "string"
+                }
+              }
+            },
+            "laundry_setting": {
+              "type": "object",
+              "properties": {
+                "cloud_reservation_supported": {
+                  "type": "boolean"
+                },
+                "course_gui_supported": {
+                  "type": "boolean"
+                },
+                "customer_course_setting_supported": {
+                  "type": "boolean"
+                },
+                "drying_supported": {
+                  "type": "boolean"
+                },
+                "drytime_prediction_supported": {
+                  "type": "boolean"
+                },
+                "drytime_schedule_upward_supported": {
+                  "type": "boolean"
+                },
+                "gui_supported": {
+                  "nullable": true
+                },
+                "laundry_type": {
+                  "type": "string"
+                },
+                "registrable_dl_courses_count": {
+                  "type": "integer"
+                }
+              }
+            },
+            "product_number": {
+              "type": "string"
+            },
+            "release_year": {
+              "type": "integer"
+            },
+            "rinse_course_name": {
+              "type": "string"
+            },
+            "supported_cmds": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "cmds": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "name": {
+                                "type": "string"
+                              },
+                              "name_bottom": {
+                                "type": "string"
+                              },
+                              "name_center": {
+                                "type": "string"
+                              },
+                              "name_top": {
+                                "type": "string"
+                              },
+                              "type": {
+                                "type": "string"
+                              },
+                              "value": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "get": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "notify": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "protocol": {
+                    "type": "string"
+                  },
+                  "set": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
+            "supported_protocol": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  },
+  "DeviceMenuItemResponse": {
+    "type": "object",
+    "properties": {
+      "shop_area": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "shop_area_id": {
+              "type": "string"
+            },
+            "shop_area_name": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "shop_category": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "shop_category_id": {
+              "type": "string"
+            },
+            "shop_category_name": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "description": "Observed response structure; optional fields and other models may add values."
+  },
+  "DeviceRegistrationRequest": {
+    "type": "object",
+    "properties": {
+      "appliance_id": {
+        "type": "string",
+        "minLength": 1
+      },
+      "com_id": {
+        "type": "string",
+        "minLength": 1
+      },
+      "hashed_guid": {
+        "type": "string",
+        "minLength": 1
+      },
+      "nickname": {
+        "type": "string",
+        "minLength": 1
+      },
+      "product_code": {
+        "type": "string",
+        "minLength": 1
+      },
+      "purchase_info": {
+        "type": "object",
+        "properties": {
+          "purchase_date": {
+            "type": "string"
+          },
+          "shop_category_id": {
+            "type": "string"
+          },
+          "shop_area_id": {
+            "type": "string"
+          },
+          "shop_name": {
+            "type": "string"
+          },
+          "memo": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "required": [
+      "appliance_id",
+      "com_id",
+      "hashed_guid",
+      "nickname",
+      "product_code",
+      "purchase_info"
+    ]
+  },
+  "DeviceRemovalRequest": {
+    "type": "object",
+    "properties": {
+      "appliance_ids": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        },
+        "minItems": 1
+      }
+    },
+    "required": [
+      "appliance_ids"
+    ]
+  },
+  "DeviceStatusResponse": {
+    "type": "object",
+    "properties": {
+      "status": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/PropertyCommand"
+        }
+      },
+      "drytime_prediction": {
+        "type": "object"
+      }
+    }
+  },
+  "DrytimePredictionSettingsRequest": {
+    "type": "object",
+    "properties": {
+      "use_drytime_prediction": {
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "use_drytime_prediction"
+    ]
+  },
+  "DrytimePredictionSettingsResponse": {
+    "type": "object",
+    "properties": {
+      "use_drytime_prediction": {
+        "type": "boolean"
+      }
+    },
+    "description": "Observed response structure; optional fields and other models may add values."
+  },
+  "ErrorResponse": {
+    "type": "object",
+    "properties": {
+      "code": {
+        "type": "string"
+      },
+      "message": {
+        "type": "string"
+      },
+      "extra": {
+        "type": "object"
+      },
+      "log_level": {
+        "type": "string"
+      },
+      "error": {
+        "type": "string"
+      },
+      "status": {
+        "type": "integer"
+      },
+      "path": {
+        "type": "string"
+      },
+      "timestamp": {
+        "type": "string"
+      }
+    }
+  },
+  "LaundryCommandRequest": {
+    "type": "object",
+    "properties": {
+      "product_number": {
+        "type": "string",
+        "minLength": 1
+      },
+      "com_id": {
+        "type": "string",
+        "minLength": 1
+      },
+      "cmds": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/PropertyCommand"
+        }
+      }
+    },
+    "required": [
+      "product_number",
+      "com_id",
+      "cmds"
+    ]
+  },
+  "LaundryCommandResponse": {
+    "type": "object",
+    "properties": {
+      "cmd_infos": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "com_id": {
+              "type": "string"
+            },
+            "id": {
+              "type": "string"
+            },
+            "params": {
+              "type": "array",
+              "items": {}
+            }
+          }
+        }
+      }
+    },
+    "description": "Observed response structure; optional fields and other models may add values."
+  },
+  "MarkNoticeReadRequest": {
+    "type": "object",
+    "properties": {
+      "read_state": {
+        "type": "boolean",
+        "enum": [
+          true
+        ]
+      }
+    },
+    "required": [
+      "read_state"
+    ]
+  },
+  "MutationResponse": {
+    "type": "object",
+    "additionalProperties": true,
+    "description": "Response shape not verified against production. Do not infer appliance acceptance from HTTP alone."
+  },
+  "NoticeSettingsRequest": {
+    "type": "object",
+    "properties": {
+      "term_id": {
+        "type": "string",
+        "minLength": 1
+      },
+      "appliance_id": {
+        "type": "string",
+        "minLength": 1
+      },
+      "pana_notice_setting": {
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "term_id",
+      "appliance_id",
+      "pana_notice_setting"
+    ]
+  },
+  "NoticeSettingsResponse": {
+    "type": "object",
+    "properties": {
+      "pana_notice_setting": {
+        "type": "boolean"
+      }
+    },
+    "description": "Observed response structure; optional fields and other models may add values."
+  },
+  "NoticesResponse": {
+    "type": "object",
+    "properties": {
+      "has_new_arrived": {
+        "type": "boolean"
+      },
+      "notices": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "appliance_id": {
+              "type": "string"
+            },
+            "content": {
+              "type": "string"
+            },
+            "description": {
+              "type": "string"
+            },
+            "id": {
+              "type": "string"
+            },
+            "payload": {
+              "type": "object",
+              "properties": {
+                "push_flg": {
+                  "type": "boolean"
+                },
+                "reports": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "course_value": {
+                        "type": "string"
+                      },
+                      "notice_comments": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "comment": {
+                              "type": "string"
+                            },
+                            "icon": {
+                              "type": "string"
+                            },
+                            "icon_name": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      },
+                      "operation_duration": {
+                        "type": "string"
+                      },
+                      "operation_end_time": {
+                        "type": "string"
+                      },
+                      "sub_course_value": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                },
+                "url_link": {
+                  "type": "string"
+                }
+              }
+            },
+            "read_state": {
+              "type": "boolean"
+            },
+            "sub_type": {
+              "type": "string"
+            },
+            "timestamp": {
+              "type": "string",
+              "nullable": true
+            },
+            "title": {
+              "type": "string"
+            },
+            "ttl": {
+              "nullable": true
+            },
+            "type": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "pagination_info": {
+        "type": "object",
+        "properties": {
+          "from_index": {
+            "type": "integer"
+          },
+          "limit": {
+            "type": "integer"
+          },
+          "total": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+    "description": "Observed response structure; optional fields and other models may add values."
+  },
+  "NotificationSettingsRequest": {
+    "type": "object",
+    "properties": {
+      "term_id": {
+        "type": "string",
+        "minLength": 1
+      },
+      "appliance_id": {
+        "type": "string",
+        "minLength": 1
+      },
+      "all_status": {
+        "type": "boolean"
+      },
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "status": {
+              "type": "boolean"
+            },
+            "category_id": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "status"
+          ]
+        }
+      },
+      "pana_notice_setting": {
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "term_id",
+      "appliance_id",
+      "all_status",
+      "items",
+      "pana_notice_setting"
+    ]
+  },
+  "NotificationSettingsResponse": {
+    "type": "object",
+    "properties": {
+      "all_status": {
+        "type": "boolean"
+      },
+      "categories": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "category_id": {
+              "type": "string"
+            },
+            "display_order": {
+              "type": "string"
+            },
+            "id": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "status": {
+              "type": "boolean"
+            }
+          }
+        }
+      }
+    },
+    "description": "Observed response structure; optional fields and other models may add values."
+  },
+  "NotificationTokenRequest": {
+    "type": "object",
+    "properties": {
+      "reg_id": {
+        "type": "string",
+        "minLength": 1
+      },
+      "type": {
+        "type": "integer",
+        "enum": [
+          1,
+          2
+        ],
+        "description": "1 Android, 2 iOS"
+      },
+      "device_id": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "required": [
+      "reg_id",
+      "type",
+      "device_id"
+    ]
+  },
+  "PropertyCommand": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "type": "string",
+        "pattern": "^[0-9A-Fa-f]{4}$"
+      },
+      "params": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/PropertyParam"
+        }
+      }
+    },
+    "required": [
+      "id",
+      "params"
+    ]
+  },
+  "PropertyParam": {
+    "type": "object",
+    "properties": {
+      "value": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "value"
+    ]
+  },
+  "PurchaseSettingsRequest": {
+    "type": "object",
+    "properties": {
+      "site_id": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "required": [
+      "site_id"
+    ]
+  },
+  "ServiceSitesResponse": {
+    "type": "object",
+    "properties": {
+      "sites": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "icon_url": {
+              "type": "string"
+            },
+            "is_activate": {
+              "type": "boolean"
+            },
+            "order_no": {
+              "type": "integer"
+            },
+            "site_id": {
+              "type": "string"
+            },
+            "site_name": {
+              "type": "string"
+            },
+            "site_url": {
+              "type": "string"
+            },
+            "updated_date": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "description": "Observed response structure; optional fields and other models may add values."
+  },
+  "ServiceSuppliesResponse": {
+    "type": "object",
+    "properties": {
+      "bleach": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "for_laundry_name": {
+              "type": "string"
+            },
+            "icon_info": {
+              "type": "object",
+              "properties": {
+                "base_url": {
+                  "type": "string"
+                },
+                "icon": {
+                  "type": "string"
+                }
+              }
+            },
+            "id": {
+              "type": "string"
+            },
+            "input_amount": {
+              "type": "integer"
+            },
+            "name": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "detergent": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "for_laundry_name": {
+              "type": "string"
+            },
+            "icon_info": {
+              "type": "object",
+              "properties": {
+                "base_url": {
+                  "type": "string"
+                },
+                "icon": {
+                  "type": "string"
+                }
+              }
+            },
+            "id": {
+              "type": "string"
+            },
+            "input_amount": {
+              "type": "integer"
+            },
+            "name": {
+              "type": "string"
+            },
+            "recommended_rinse_times": {
+              "type": "integer"
+            }
+          }
+        }
+      },
+      "neutralDetergent": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "for_laundry_name": {
+              "type": "string"
+            },
+            "icon_info": {
+              "type": "object",
+              "properties": {
+                "base_url": {
+                  "type": "string"
+                },
+                "icon": {
+                  "type": "string"
+                }
+              }
+            },
+            "id": {
+              "type": "string"
+            },
+            "input_amount": {
+              "type": "integer"
+            },
+            "name": {
+              "type": "string"
+            },
+            "recommended_rinse_times": {
+              "nullable": true
+            }
+          }
+        }
+      },
+      "softener": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "for_laundry_name": {
+              "type": "string"
+            },
+            "icon_info": {
+              "type": "object",
+              "properties": {
+                "base_url": {
+                  "type": "string"
+                },
+                "icon": {
+                  "type": "string"
+                }
+              }
+            },
+            "id": {
+              "type": "string"
+            },
+            "input_amount": {
+              "type": "integer"
+            },
+            "name": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "stainRemovers": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "for_laundry_name": {
+              "type": "string"
+            },
+            "icon_info": {
+              "type": "object",
+              "properties": {
+                "base_url": {
+                  "type": "string"
+                },
+                "icon": {
+                  "type": "string"
+                }
+              }
+            },
+            "id": {
+              "type": "string"
+            },
+            "input_amount": {
+              "type": "integer"
+            },
+            "name": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "description": "Observed response structure; optional fields and other models may add values."
+  },
+  "UserDeviceListResponse": {
+    "type": "object",
+    "properties": {
+      "devices": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "appliance_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "product_code": {
+              "type": "string"
+            },
+            "com_id": {
+              "type": "string"
+            },
+            "nickname": {
+              "type": "string"
+            },
+            "hashed_guid": {
+              "type": "string"
+            },
+            "serial_number": {
+              "type": "string"
+            },
+            "purchase_info": {
+              "type": "object"
+            },
+            "laundry_setting": {
+              "type": "object"
+            },
+            "icon_info": {
+              "type": "object"
+            },
+            "downloadable_version": {
+              "type": "string"
+            },
+            "number_of_users": {
+              "type": "integer"
+            },
+            "last_selected_date": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  },
+  "UserLoginRequest": {
+    "type": "object",
+    "properties": {
+      "type": {
+        "type": "integer",
+        "enum": [
+          0,
+          1
+        ]
+      }
+    },
+    "required": [
+      "type"
+    ]
+  },
+  "UserLoginResponse": {
+    "type": "object",
+    "properties": {
+      "messages": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "registered_date": {
+              "type": "string"
+            },
+            "title": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string"
+            },
+            "url_link": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "notification_term_ids": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "read_message_ids": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "selected_device": {
+        "type": "object",
+        "properties": {
+          "appliance_id": {
+            "type": "string"
+          },
+          "cloud_reservation_flg": {
+            "type": "boolean"
+          }
+        }
+      },
+      "selected_supplies": {
+        "type": "object",
+        "properties": {
+          "detergent": {
+            "nullable": true
+          },
+          "neutral_detergent": {
+            "nullable": true
+          },
+          "softener": {
+            "nullable": true
+          }
+        }
+      },
+      "tos_agreed_version": {
+        "type": "string"
+      }
+    },
+    "description": "Observed response structure; optional fields and other models may add values."
+  },
+  "UserPurchaseSettingsResponse": {
+    "type": "object",
+    "properties": {
+      "purchase_status": {
+        "type": "boolean"
+      },
+      "setting_status": {
+        "type": "boolean"
+      }
+    },
+    "description": "Observed response structure; optional fields and other models may add values."
+  },
+  "UserUpdateRequest": {
+    "oneOf": [
+      {
+        "type": "object",
+        "properties": {
+          "setting_type": {
+            "type": "integer",
+            "enum": [
+              1
+            ]
+          },
+          "tos_agreed_version": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "setting_type",
+          "tos_agreed_version"
+        ]
+      },
+      {
+        "type": "object",
+        "properties": {
+          "setting_type": {
+            "type": "integer",
+            "enum": [
+              2
+            ]
+          },
+          "appliance_id": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "setting_type",
+          "appliance_id"
+        ]
+      },
+      {
+        "type": "object",
+        "properties": {
+          "setting_type": {
+            "type": "integer",
+            "enum": [
+              3
+            ]
+          },
+          "tos_agreed_version": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "setting_type",
+          "tos_agreed_version"
+        ]
+      },
+      {
+        "type": "object",
+        "properties": {
+          "setting_type": {
+            "type": "integer",
+            "enum": [
+              4
+            ]
+          },
+          "read_message_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "setting_type",
+          "read_message_ids"
+        ]
+      },
+      {
+        "type": "object",
+        "properties": {
+          "setting_type": {
+            "type": "integer",
+            "enum": [
+              5
+            ]
+          }
+        },
+        "required": [
+          "setting_type"
+        ]
+      },
+      {
+        "type": "object",
+        "properties": {
+          "setting_type": {
+            "type": "integer",
+            "enum": [
+              6
+            ]
+          },
+          "term_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "app_sleep_setting": {
+            "description": "Native-provided value; type not established by web source."
+          }
+        },
+        "required": [
+          "setting_type",
+          "term_id",
+          "app_sleep_setting"
+        ]
+      }
+    ]
+  },
+  "VersionResponse": {
+    "type": "object",
+    "properties": {
+      "absolute": {
+        "type": "boolean"
+      },
+      "contents": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "message": {
+              "type": "string"
+            },
+            "screen_id": {
+              "type": "string"
+            },
+            "update_date": {
+              "type": "string"
+            },
+            "url": {
+              "type": "string"
+            },
+            "version": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "external_sites": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "url": {
+              "type": "string"
+            },
+            "version": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "fwup_contents": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "url": {
+              "type": "string"
+            },
+            "version": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "models": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        }
+      },
+      "tos": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "description": "Observed response structure; optional fields and other models may add values."
+  },
+  "WeatherForecastResponse": {
+    "type": "object",
+    "properties": {
+      "forecasts": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "day_of_week": {
+              "type": "string"
+            },
+            "exp_time_utc": {
+              "type": "integer"
+            },
+            "icon_code": {
+              "type": "integer"
+            },
+            "precip_chance": {
+              "type": "integer"
+            },
+            "valid_time_local": {
+              "type": "string"
+            },
+            "valid_time_utc": {
+              "type": "integer"
+            }
+          }
+        }
+      },
+      "metadata": {
+        "type": "object",
+        "properties": {
+          "forecast_expire_date": {
+            "type": "string"
+          },
+          "forecast_updated_date": {
+            "type": "string"
+          },
+          "locale_id": {
+            "type": "string"
+          },
+          "region_id": {
+            "type": "string"
+          },
+          "sub_region_1": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "sub_region_2": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "sub_region_3": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "nullable": true
+          }
+        }
+      },
+      "service_end": {
+        "type": "boolean"
+      }
+    },
+    "description": "Observed response structure; optional fields and other models may add values."
+  },
+  "WeatherSettingsRequest": {
+    "type": "object",
+    "properties": {
+      "locale_id": {
+        "type": "string",
+        "minLength": 1
+      },
+      "region_id": {
+        "type": "string",
+        "minLength": 1
+      },
+      "sub_region_1": {
+        "type": "object",
+        "minProperties": 1,
+        "maxProperties": 1,
+        "additionalProperties": {
+          "type": "string"
+        }
+      },
+      "sub_region_2": {
+        "type": "object",
+        "minProperties": 1,
+        "maxProperties": 1,
+        "additionalProperties": {
+          "type": "string"
+        }
+      },
+      "sub_region_3": {
+        "type": "object",
+        "minProperties": 1,
+        "maxProperties": 1,
+        "additionalProperties": {
+          "type": "string"
+        },
+        "nullable": true
+      }
+    },
+    "required": [
+      "locale_id",
+      "region_id",
+      "sub_region_1",
+      "sub_region_2"
+    ]
+  }
+}
