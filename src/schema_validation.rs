@@ -6,7 +6,8 @@ use std::sync::OnceLock;
 pub fn validate(name: &str, value: &Value) -> Result<()> {
     static SCHEMAS: OnceLock<Value> = OnceLock::new();
     let schemas = SCHEMAS.get_or_init(|| {
-        serde_json::from_str(include_str!("generated_api_schemas.json")).expect("generated schemas")
+        serde_json::from_str(include_str!(concat!(env!("OUT_DIR"), "/api_schemas.json")))
+            .expect("generated schemas")
     });
     check(&schemas[name], value, schemas)
 }

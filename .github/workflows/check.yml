@@ -13,7 +13,6 @@ jobs:
           python-version: '3.12'
       - run: pip install -r scripts/requirements-openapi.txt
       - run: python scripts/check-openapi.py
-      - run: python scripts/generate-api-client.py --check
       - run: cargo fmt --check
       - run: cargo test --locked
       - run: cargo clippy --locked --all-targets -- -D warnings

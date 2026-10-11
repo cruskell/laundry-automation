@@ -323,20 +323,52 @@ fn check_control_response(request: &Value, data: &Value) -> Result<()> {
 }
 
 fn transmit_once(
-    client: &Client,
+    _client: &Client,
     prepared: &Prepared,
     token: Option<&str>,
     appliance: Option<&str>,
 ) -> Result<(u16, Value)> {
-    crate::generated_api::send(
-        client,
-        prepared.method.clone(),
-        prepared.url.clone(),
-        prepared.body.as_ref(),
-        &prepared.headers,
-        token,
-        appliance,
-    )
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()?;
+    runtime.block_on(async {
+        let mut headers = reqwest::header::HeaderMap::new();
+        headers.insert("Content-Language", "ja_JP".parse()?);
+        let timestamp = chrono::Utc::now()
+            .with_timezone(&chrono::FixedOffset::east_opt(9 * 3600).unwrap())
+            .format("%Y%m%d%H%M%S%z")
+            .to_string();
+        headers.insert("X-Timestamp", timestamp.parse()?);
+        if let Some(token) = token {
+            let mut bearer = reqwest::header::HeaderValue::from_str(&format!("Bearer {token}"))?;
+            bearer.set_sensitive(true);
+            headers.insert(reqwest::header::AUTHORIZATION, bearer);
+            let mut cookie = reqwest::header::HeaderValue::from_str(&format!("atkn={token}"))?;
+            cookie.set_sensitive(true);
+            headers.insert(reqwest::header::COOKIE, cookie);
+        }
+        if let Some(id) = appliance {
+            headers.insert("X-ApplianceId", id.parse()?);
+        }
+        let http = reqwest::Client::builder()
+            .user_agent(concat!("laundry-automation/", env!("CARGO_PKG_VERSION")))
+            .default_headers(headers)
+            .redirect(reqwest::redirect::Policy::none())
+            .retry(reqwest::retry::never())
+            .timeout(std::time::Duration::from_secs(25))
+            .build()?;
+        let origin = prepared.url.origin().ascii_serialization();
+        let generated = crate::panasonic_api::Client::new_with_client(&origin, http);
+        crate::generated_api::dispatch(
+            &generated,
+            &prepared.method,
+            &prepared.url,
+            prepared.body.as_ref(),
+            &prepared.headers,
+            appliance,
+        )
+        .await
+    })
 }
 
 // The app's /notices/{id} POST marks a notice read. Fetch details through
@@ -922,7 +954,7 @@ mod tests {
                 assert_eq!(request.method(), &tiny_http::Method::Get);
                 assert_eq!(
                     request.url(),
-                    format!("/laundry/v5/notices?limit=100&from_index={offset}")
+                    format!("/laundry/v5/notices?from_index={offset}&limit=100")
                 );
                 request.respond(tiny_http::Response::from_string(json!({"notices":[{"id":id,"read_state":false}],"pagination_info":{"total":2}}).to_string())).unwrap();
             }
@@ -1073,22 +1105,38 @@ mod tests {
     }
 
     #[test]
-    fn mock_server_checks_get_post_delete_and_does_not_follow_redirects() {
-        for (method, status, body) in [
-            (Method::GET, 200, None),
-            (Method::POST, 200, Some(json!({"enabled":false}))),
-            (Method::DELETE, 204, None),
-            (Method::POST, 307, Some(json!({"enabled":false}))),
-            (Method::POST, 400, Some(json!({"enabled":false}))),
+    fn generated_client_preserves_error_statuses_and_does_not_follow_redirects() {
+        for (operation, status, body) in [
+            (Operation::Notices, 200, None),
+            (
+                Operation::UpdatePredictionSettings,
+                200,
+                Some(json!({"use_drytime_prediction":false})),
+            ),
+            (Operation::Notices, 204, None),
+            (
+                Operation::UpdatePredictionSettings,
+                307,
+                Some(json!({"use_drytime_prediction":false})),
+            ),
+            (
+                Operation::UpdatePredictionSettings,
+                400,
+                Some(json!({"use_drytime_prediction":false})),
+            ),
         ] {
             let server = tiny_http::Server::http("127.0.0.1:0").unwrap();
+            let reading = matches!(operation, Operation::Notices);
+            let method = if reading { Method::GET } else { Method::POST };
+            let expected_path = if reading {
+                "/laundry/v5/notices?language=a%26b"
+            } else {
+                "/laundry/v5/user/drytime_prediction/settings"
+            };
             let prepared = Prepared {
                 method: method.clone(),
-                url: Url::parse(&format!(
-                    "http://{}/settings?id=a%26b",
-                    server.server_addr()
-                ))
-                .unwrap(),
+                url: Url::parse(&format!("http://{}{expected_path}", server.server_addr()))
+                    .unwrap(),
                 body: body.clone(),
                 headers: BTreeMap::new(),
                 notice_id: None,
@@ -1099,7 +1147,7 @@ mod tests {
                     .unwrap()
                     .unwrap();
                 assert_eq!(request.method().as_str(), method.as_str());
-                assert_eq!(request.url(), "/settings?id=a%26b");
+                assert_eq!(request.url(), expected_path);
                 for (name, value) in [
                     ("Authorization", "Bearer dummy"),
                     ("Cookie", "atkn=dummy"),

@@ -4,8 +4,8 @@ The `api` command exposes 38 operations alongside `devices`, `info`, `status`,
 `start`, and the existing analysis commands. The implementation follows the
 [official app source map](https://cot.wad.apws.panasonic.com/FY26_2nd/static/js/main.d8aa4ffb.js.map).
 `spec/openapi.yaml` now reflects these observed contracts (29 paths / 35 HTTP
-operations). The 38 CLI operations and their request schemas are generated from it;
-see README.md for regeneration. Verification is recorded per operation with
+operations). Progenitor generates the HTTP client and request models during Cargo builds;
+the 38 CLI aliases call that client through a schema-derived adapter. Verification is recorded per operation with
 `x-verification`; writes have not been executed against production.
 
 ## Usage and result handling

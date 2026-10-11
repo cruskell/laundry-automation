@@ -6,6 +6,7 @@ mod extract;
 mod forensics;
 mod generated_api;
 mod packed;
+mod panasonic_api;
 mod schema_validation;
 mod source_audit;
 mod start;
