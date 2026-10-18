@@ -3,6 +3,10 @@ use anyhow::{Context, Result, ensure};
 use serde_json::{Value, json};
 
 pub fn plan(appliance: &str, snapshot: &Value) -> Result<Value> {
+    plan_mode(appliance, snapshot, false)
+}
+
+fn plan_mode(appliance: &str, snapshot: &Value, wash_only: bool) -> Result<Value> {
     ensure!(!appliance.is_empty(), "Missing appliance ID");
     ensure!(snapshot["http_status"] == 200, "Unsuccessful snapshot");
     let records = snapshot["data"]["status"]
@@ -20,10 +24,10 @@ pub fn plan(appliance: &str, snapshot: &Value) -> Result<Value> {
         );
         Ok(value.to_ascii_uppercase())
     };
-    // This plan covers the model's normal wash-and-dry course only.
+    // Official Edt.WashingEntrust=61; WashingAndDryingEntrust=21.
     let mut cmds = vec![
         json!({"id":"00B2","params":["41"]}),
-        json!({"id":"00D0","params":["21"]}),
+        json!({"id":"00D0","params":[if wash_only { "61" } else { "21" }]}),
     ];
     for id in ["0132", "0133", "013B", "0151"] {
         cmds.push(json!({"id":id,"params":[get(id)?]}));
@@ -31,7 +35,7 @@ pub fn plan(appliance: &str, snapshot: &Value) -> Result<Value> {
     Ok(json!({
         "analysis_only":true,"sent":false,"snapshot_fetched_at":snapshot["fetched_at"],
         "method":"POST","url":"https://app.wad.apws.panasonic.com/laundry/v5/device/control",
-        "course":"21: normal wash and dry","body":{"requests":[{
+        "course":if wash_only { "61: normal wash only" } else { "21: normal wash and dry" },"body":{"requests":[{
             "appliance_id":appliance,"cmd_type":"02","cmds":cmds,"protocol":"echonetlite","seq_no":1
         }]},
         "preconditions_require_live_verification":{"remote_control_raw":get("0100")?,"door_raw":get("00B0")?,"abnormality_raw":get("0088")?,"power_raw":get("0080")?}
@@ -151,6 +155,7 @@ fn preflight(snapshot: &Value) -> Result<()> {
     Ok(())
 }
 
+#[cfg(test)]
 fn write_once(
     client: &reqwest::blocking::Client,
     endpoint: &str,
@@ -158,13 +163,24 @@ fn write_once(
     appliance: &str,
     snapshot: &Value,
 ) -> Result<(u16, Value)> {
+    write_once_mode(client, endpoint, token, appliance, snapshot, false)
+}
+
+fn write_once_mode(
+    client: &reqwest::blocking::Client,
+    endpoint: &str,
+    token: &str,
+    appliance: &str,
+    snapshot: &Value,
+    wash_only: bool,
+) -> Result<(u16, Value)> {
     preflight(snapshot)?;
-    let plan = plan(appliance, snapshot)?;
+    let plan = plan_mode(appliance, snapshot, wash_only)?;
     crate::api::control_request(client, endpoint, token, appliance, &plan["body"])
         .context("Start delivery is uncertain; inspect appliance state before retrying. The client did not retry the start request")
 }
 
-pub fn send(appliance: Option<&str>, dry_run: bool) -> Result<()> {
+pub fn send(appliance: Option<&str>, dry_run: bool, wash_only: bool) -> Result<()> {
     use crate::api;
     use chrono::Utc;
     let tokens = storage::read(&storage::root().join("auth/tokens.json"))?;
@@ -256,22 +272,28 @@ pub fn send(appliance: Option<&str>, dry_run: bool) -> Result<()> {
     let snapshot = json!({"http_status":200,"fetched_at":Utc::now().to_rfc3339(),"data":{"status":result["cmds"]}});
     storage::save("start-preflight.json", &snapshot)?;
     preflight(&snapshot)?;
-    let mut request = plan(id, &snapshot)?;
+    let mut request = plan_mode(id, &snapshot, wash_only)?;
+    let mode = if wash_only {
+        "wash-only"
+    } else {
+        "wash-and-dry"
+    };
     request["analysis_only"] = json!(dry_run);
     // Delivery status belongs to the separate attempt record, not this request template.
     request.as_object_mut().unwrap().remove("sent");
     storage::save("start-request.json", &request)?;
     if dry_run {
         println!(
-            "Live preflight passed. Normal wash-and-dry request saved to .local/start-request.json; no write sent."
+            "Live preflight passed. Normal {mode} request saved to .local/start-request.json; no write sent."
         );
         return Ok(());
     }
     storage::save(
         "start-attempt.json",
-        &json!({"state":"sending","started_at":Utc::now().to_rfc3339(),"course":"21","automatic_retry":false}),
+        &json!({"state":"sending","started_at":Utc::now().to_rfc3339(),"course":if wash_only { "61" } else { "21" },"automatic_retry":false}),
     )?;
-    let response = match write_once(&client, api::CONTROL_URL, token, id, &snapshot) {
+    let response = match write_once_mode(&client, api::CONTROL_URL, token, id, &snapshot, wash_only)
+    {
         Ok((code, data)) => {
             json!({"http_status":code,"received_at":Utc::now().to_rfc3339(),"data":data})
         }
@@ -301,7 +323,7 @@ pub fn send(appliance: Option<&str>, dry_run: bool) -> Result<()> {
     )
     .context("API accepted the start, but recording acceptance failed; do not resend")?;
     println!(
-        "Normal wash-and-dry start accepted by the API. Physical operation has not been independently confirmed. Response saved to .local/start-response.json."
+        "Normal {mode} start accepted by the API. Physical operation has not been independently confirmed. Response saved to .local/start-response.json."
     );
     Ok(())
 }
@@ -330,6 +352,63 @@ mod tests {
 
     fn success() -> Value {
         json!({"results":[{"appliance_id":"test-device","cmd_type":"02","seq_no":1,"cmd_result":true,"status_code":"200","pcpf_status_code":"200"}]})
+    }
+
+    #[test]
+    fn wash_only_sender_transmits_the_selected_course_once() {
+        let server = tiny_http::Server::http("127.0.0.1:0").unwrap();
+        let endpoint = format!("http://{}/device/control", server.server_addr());
+        let worker = std::thread::spawn(move || {
+            let mut request = server
+                .recv_timeout(std::time::Duration::from_secs(3))
+                .unwrap()
+                .unwrap();
+            let body: Value = serde_json::from_reader(request.as_reader()).unwrap();
+            let expected = plan_mode("test-device", &healthy(), true).unwrap();
+            assert_eq!(body, expected["body"]);
+            request
+                .respond(tiny_http::Response::from_string("{}"))
+                .unwrap();
+            assert!(
+                server
+                    .recv_timeout(std::time::Duration::from_millis(100))
+                    .unwrap()
+                    .is_none()
+            );
+        });
+        let (code, _) = write_once_mode(
+            &crate::api::control_client().unwrap(),
+            &endpoint,
+            "dummy",
+            "test-device",
+            &healthy(),
+            true,
+        )
+        .unwrap();
+        assert_eq!(code, 200);
+        worker.join().unwrap();
+    }
+
+    #[test]
+    fn wash_only_selects_61_and_preserves_dosing_and_start_guards() {
+        let snapshot = healthy();
+        let normal = plan("test-device", &snapshot).unwrap();
+        let wash = plan_mode("test-device", &snapshot, true).unwrap();
+        assert_eq!(
+            wash["body"]["requests"][0]["cmds"][1],
+            json!({"id":"00D0","params":["61"]})
+        );
+        let mut expected = normal["body"].clone();
+        expected["requests"][0]["cmds"][1]["params"][0] = json!("61");
+        assert_eq!(wash["body"], expected);
+        let mut unsafe_snapshot = snapshot;
+        unsafe_snapshot["data"]["status"]
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .find(|p| p["id"] == "0100")
+            .unwrap()["params"][0]["value"] = json!("00");
+        assert!(preflight(&unsafe_snapshot).is_err());
     }
 
     #[test]

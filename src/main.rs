@@ -57,8 +57,11 @@ enum Command {
     Status,
     /// Generate an offline immediate-start request without sending it.
     PlanStart,
-    /// Start normal wash-and-dry using live settings; dry-run performs reads only.
+    /// Start normal wash-and-dry (or --wash-only) using live settings.
     Start {
+        /// Wash only, without drying.
+        #[arg(long)]
+        wash_only: bool,
         #[arg(long)]
         dry_run: bool,
     },
@@ -109,7 +112,9 @@ fn main() -> Result<()> {
         Command::SourceAudit { map, models } => source_audit::run(&map, &models),
         Command::Status => api::run("status", cli.appliance_id.as_deref()),
         Command::PlanStart => start::run(cli.appliance_id.as_deref()),
-        Command::Start { dry_run } => start::send(cli.appliance_id.as_deref(), dry_run),
+        Command::Start { dry_run, wash_only } => {
+            start::send(cli.appliance_id.as_deref(), dry_run, wash_only)
+        }
         Command::Inspect { snapshot, baseline } => {
             forensics::run(snapshot.as_deref(), baseline.as_deref())
         }

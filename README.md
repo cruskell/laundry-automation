@@ -172,3 +172,10 @@ See `START_API.md` for the observed immediate wash-and-dry control request. `car
 ## Refresh credentials
 
 Run `target/release/laundry-automation refresh-token` to exchange the stored refresh token. The response replaces credentials only after validation; a rotated refresh token is retained, and an omitted refresh token preserves the previous one. Refresh requests disable automatic retries. The daily-start script refreshes credentials before each guarded start and aborts if refresh fails. Credential files remain private and excluded from Git.
+
+The local laundry schedule (Asia/Tokyo) starts normal wash-and-dry at 18:00 on
+Sunday–Tuesday and Thursday–Saturday. On Wednesday it runs wash-only at 19:00
+using `scripts/daily-start.sh --wash-only` (`start --wash-only`, course `61`).
+Token-only refreshes run at 02:00 and 10:00 daily; each scheduled start also refreshes
+credentials. `start --wash-only --dry-run` performs live preflight reads without
+starting the appliance.
