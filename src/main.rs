@@ -62,6 +62,9 @@ enum Command {
         /// Wash only, without drying.
         #[arg(long)]
         wash_only: bool,
+        /// Enable detergent and softener auto dosing if currently off.
+        #[arg(long)]
+        auto_dosing: bool,
         #[arg(long)]
         dry_run: bool,
     },
@@ -112,9 +115,11 @@ fn main() -> Result<()> {
         Command::SourceAudit { map, models } => source_audit::run(&map, &models),
         Command::Status => api::run("status", cli.appliance_id.as_deref()),
         Command::PlanStart => start::run(cli.appliance_id.as_deref()),
-        Command::Start { dry_run, wash_only } => {
-            start::send(cli.appliance_id.as_deref(), dry_run, wash_only)
-        }
+        Command::Start {
+            dry_run,
+            wash_only,
+            auto_dosing,
+        } => start::send(cli.appliance_id.as_deref(), dry_run, wash_only, auto_dosing),
         Command::Inspect { snapshot, baseline } => {
             forensics::run(snapshot.as_deref(), baseline.as_deref())
         }

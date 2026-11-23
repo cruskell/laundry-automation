@@ -3,10 +3,15 @@ use anyhow::{Context, Result, ensure};
 use serde_json::{Value, json};
 
 pub fn plan(appliance: &str, snapshot: &Value) -> Result<Value> {
-    plan_mode(appliance, snapshot, false)
+    plan_mode(appliance, snapshot, false, false)
 }
 
-fn plan_mode(appliance: &str, snapshot: &Value, wash_only: bool) -> Result<Value> {
+fn plan_mode(
+    appliance: &str,
+    snapshot: &Value,
+    wash_only: bool,
+    auto_dosing: bool,
+) -> Result<Value> {
     ensure!(!appliance.is_empty(), "Missing appliance ID");
     ensure!(snapshot["http_status"] == 200, "Unsuccessful snapshot");
     let records = snapshot["data"]["status"]
@@ -30,7 +35,13 @@ fn plan_mode(appliance: &str, snapshot: &Value, wash_only: bool) -> Result<Value
         json!({"id":"00D0","params":[if wash_only { "61" } else { "21" }]}),
     ];
     for id in ["0132", "0133", "013B", "0151"] {
-        cmds.push(json!({"id":id,"params":[get(id)?]}));
+        let current = get(id)?;
+        let mode = if auto_dosing && matches!(id, "0132" | "0133") && current == "00" {
+            "02"
+        } else {
+            &current
+        };
+        cmds.push(json!({"id":id,"params":[mode]}));
     }
     Ok(json!({
         "analysis_only":true,"sent":false,"snapshot_fetched_at":snapshot["fetched_at"],
@@ -163,7 +174,7 @@ fn write_once(
     appliance: &str,
     snapshot: &Value,
 ) -> Result<(u16, Value)> {
-    write_once_mode(client, endpoint, token, appliance, snapshot, false)
+    write_once_mode(client, endpoint, token, appliance, snapshot, false, false)
 }
 
 fn write_once_mode(
@@ -173,14 +184,20 @@ fn write_once_mode(
     appliance: &str,
     snapshot: &Value,
     wash_only: bool,
+    auto_dosing: bool,
 ) -> Result<(u16, Value)> {
     preflight(snapshot)?;
-    let plan = plan_mode(appliance, snapshot, wash_only)?;
+    let plan = plan_mode(appliance, snapshot, wash_only, auto_dosing)?;
     crate::api::control_request(client, endpoint, token, appliance, &plan["body"])
         .context("Start delivery is uncertain; inspect appliance state before retrying. The client did not retry the start request")
 }
 
-pub fn send(appliance: Option<&str>, dry_run: bool, wash_only: bool) -> Result<()> {
+pub fn send(
+    appliance: Option<&str>,
+    dry_run: bool,
+    wash_only: bool,
+    auto_dosing: bool,
+) -> Result<()> {
     use crate::api;
     use chrono::Utc;
     let tokens = storage::read(&storage::root().join("auth/tokens.json"))?;
@@ -272,7 +289,7 @@ pub fn send(appliance: Option<&str>, dry_run: bool, wash_only: bool) -> Result<(
     let snapshot = json!({"http_status":200,"fetched_at":Utc::now().to_rfc3339(),"data":{"status":result["cmds"]}});
     storage::save("start-preflight.json", &snapshot)?;
     preflight(&snapshot)?;
-    let mut request = plan_mode(id, &snapshot, wash_only)?;
+    let mut request = plan_mode(id, &snapshot, wash_only, auto_dosing)?;
     let mode = if wash_only {
         "wash-only"
     } else {
@@ -292,8 +309,15 @@ pub fn send(appliance: Option<&str>, dry_run: bool, wash_only: bool) -> Result<(
         "start-attempt.json",
         &json!({"state":"sending","started_at":Utc::now().to_rfc3339(),"course":if wash_only { "61" } else { "21" },"automatic_retry":false}),
     )?;
-    let response = match write_once_mode(&client, api::CONTROL_URL, token, id, &snapshot, wash_only)
-    {
+    let response = match write_once_mode(
+        &client,
+        api::CONTROL_URL,
+        token,
+        id,
+        &snapshot,
+        wash_only,
+        auto_dosing,
+    ) {
         Ok((code, data)) => {
             json!({"http_status":code,"received_at":Utc::now().to_rfc3339(),"data":data})
         }
@@ -355,6 +379,26 @@ mod tests {
     }
 
     #[test]
+    fn scheduled_dosing_enables_manual_tanks_and_preserves_active_modes() {
+        let mut snapshot = healthy();
+        for row in snapshot["data"]["status"].as_array_mut().unwrap() {
+            match row["id"].as_str() {
+                Some("0132" | "013B") => row["params"][0]["value"] = json!("00"),
+                Some("0133") => row["params"][0]["value"] = json!("03"),
+                _ => {}
+            }
+        }
+        for wash_only in [false, true] {
+            let normal = plan_mode("device", &snapshot, wash_only, false).unwrap();
+            let scheduled = plan_mode("device", &snapshot, wash_only, true).unwrap();
+            let mut expected = normal["body"].clone();
+            assert_eq!(expected["requests"][0]["cmds"][2]["params"][0], "00");
+            expected["requests"][0]["cmds"][2]["params"][0] = json!("02");
+            assert_eq!(scheduled["body"], expected);
+        }
+    }
+
+    #[test]
     fn wash_only_sender_transmits_the_selected_course_once() {
         let server = tiny_http::Server::http("127.0.0.1:0").unwrap();
         let endpoint = format!("http://{}/device/control", server.server_addr());
@@ -364,7 +408,7 @@ mod tests {
                 .unwrap()
                 .unwrap();
             let body: Value = serde_json::from_reader(request.as_reader()).unwrap();
-            let expected = plan_mode("test-device", &healthy(), true).unwrap();
+            let expected = plan_mode("test-device", &healthy(), true, false).unwrap();
             assert_eq!(body, expected["body"]);
             request
                 .respond(tiny_http::Response::from_string("{}"))
@@ -383,6 +427,7 @@ mod tests {
             "test-device",
             &healthy(),
             true,
+            false,
         )
         .unwrap();
         assert_eq!(code, 200);
@@ -393,7 +438,7 @@ mod tests {
     fn wash_only_selects_61_and_preserves_dosing_and_start_guards() {
         let snapshot = healthy();
         let normal = plan("test-device", &snapshot).unwrap();
-        let wash = plan_mode("test-device", &snapshot, true).unwrap();
+        let wash = plan_mode("test-device", &snapshot, true, false).unwrap();
         assert_eq!(
             wash["body"]["requests"][0]["cmds"][1],
             json!({"id":"00D0","params":["61"]})

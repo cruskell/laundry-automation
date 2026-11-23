@@ -13,9 +13,9 @@ if ! flock -n 9; then
     exit 0
 fi
 case "${1:-}" in
-    '') set -- start ;;
-    --dry-run) set -- start --dry-run ;;
-    --wash-only) set -- start --wash-only ;;
+    '') set -- start --auto-dosing ;;
+    --dry-run) set -- start --auto-dosing --dry-run ;;
+    --wash-only) set -- start --auto-dosing --wash-only ;;
     *) printf 'Usage: daily-start.sh [--dry-run|--wash-only]\n'; exit 2 ;;
 esac
 # Refresh credentials before each daily attempt; failure prevents the start.
